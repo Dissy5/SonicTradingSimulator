@@ -66,6 +66,7 @@ class PriceTableManager:
             (700000, 800000),
             (900000, 1000000)
         ]
+
         price_ranges.reverse()
 
         # Fetch all skin averages
