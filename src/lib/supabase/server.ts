@@ -48,4 +48,6 @@ export type SaleRow = {
   star: number;
   price: number;
   created_at: string;
+  created_by: string | null;
+  recorded_by_email: string | null;
 };

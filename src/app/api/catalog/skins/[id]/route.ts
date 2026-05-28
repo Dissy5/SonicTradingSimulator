@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { isAdminContext, requireAdminApi } from "@/lib/admin";
 import { getCatalogSkinById, skinEntryExists } from "@/lib/catalog-db";
 import { editSkin, getCharacters, removeSkin } from "@/lib/catalog-server";
 import { SKIN_RARITIES } from "@/lib/rarities";
@@ -9,6 +10,9 @@ type RouteContext = {
 };
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
+  const admin = await requireAdminApi();
+  if (!isAdminContext(admin)) return admin;
+
   const id = Number((await context.params).id);
   if (!Number.isInteger(id) || id < 1) {
     return NextResponse.json({ error: "Invalid skin id" }, { status: 400 });
@@ -57,7 +61,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   }
 
   try {
-    const skin = await editSkin(id, { character, name, rarity, imageFile });
+    const skin = await editSkin(id, { character, name, rarity, imageFile }, admin.supabase);
     return NextResponse.json({ ok: true, skin });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to update skin";
@@ -66,13 +70,16 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 }
 
 export async function DELETE(_request: NextRequest, context: RouteContext) {
+  const admin = await requireAdminApi();
+  if (!isAdminContext(admin)) return admin;
+
   const id = Number((await context.params).id);
   if (!Number.isInteger(id) || id < 1) {
     return NextResponse.json({ error: "Invalid skin id" }, { status: 400 });
   }
 
   try {
-    const deleted = await removeSkin(id);
+    const deleted = await removeSkin(id, admin.supabase);
     if (!deleted) {
       return NextResponse.json({ error: "Skin not found" }, { status: 404 });
     }

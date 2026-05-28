@@ -17,7 +17,18 @@ async function ensureSalesFile() {
 async function readSales(): Promise<Sale[]> {
   await ensureSalesFile();
   const raw = await fs.readFile(salesPath, "utf-8");
-  return JSON.parse(raw) as Sale[];
+  const parsed = JSON.parse(raw) as Partial<Sale>[];
+  return parsed.map((sale) => ({
+    id: sale.id ?? 0,
+    character: sale.character ?? "",
+    skin: sale.skin ?? "",
+    rarity: sale.rarity ?? "",
+    star: sale.star ?? 1,
+    price: sale.price ?? 0,
+    createdAt: sale.createdAt ?? new Date(0).toISOString(),
+    createdBy: sale.createdBy ?? null,
+    recordedBy: sale.recordedBy ?? null,
+  }));
 }
 
 async function writeSales(sales: Sale[]) {
@@ -30,13 +41,18 @@ export async function listSales(): Promise<Sale[]> {
   return sales.sort((a, b) => b.id - a.id);
 }
 
-export async function addSale(input: Omit<Sale, "id" | "createdAt">): Promise<Sale> {
+export async function addSale(
+  input: Omit<Sale, "id" | "createdAt" | "createdBy" | "recordedBy">,
+  context: { userId: string; recordedBy: string }
+): Promise<Sale> {
   const sales = await readSales();
   const nextId = sales.reduce((max, sale) => Math.max(max, sale.id), 0) + 1;
   const sale: Sale = {
     ...input,
     id: nextId,
     createdAt: new Date().toISOString(),
+    createdBy: context.userId,
+    recordedBy: context.recordedBy,
   };
   sales.push(sale);
   await writeSales(sales);

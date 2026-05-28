@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { isAdminContext, requireAdminApi } from "@/lib/admin";
 import { characterNameExists } from "@/lib/catalog-db";
 import { removeCharacter, renameCharacter } from "@/lib/catalog-server";
 
@@ -8,6 +9,9 @@ type RouteContext = {
 };
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
+  const admin = await requireAdminApi();
+  if (!isAdminContext(admin)) return admin;
+
   const id = Number((await context.params).id);
   if (!Number.isInteger(id) || id < 1) {
     return NextResponse.json({ error: "Invalid character id" }, { status: 400 });
@@ -25,7 +29,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   }
 
   try {
-    const character = await renameCharacter(id, name);
+    const character = await renameCharacter(id, name, admin.supabase);
     return NextResponse.json({ ok: true, character });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to update character";
@@ -34,13 +38,16 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 }
 
 export async function DELETE(_request: NextRequest, context: RouteContext) {
+  const admin = await requireAdminApi();
+  if (!isAdminContext(admin)) return admin;
+
   const id = Number((await context.params).id);
   if (!Number.isInteger(id) || id < 1) {
     return NextResponse.json({ error: "Invalid character id" }, { status: 400 });
   }
 
   try {
-    const deleted = await removeCharacter(id);
+    const deleted = await removeCharacter(id, admin.supabase);
     if (!deleted) {
       return NextResponse.json({ error: "Character not found" }, { status: 404 });
     }

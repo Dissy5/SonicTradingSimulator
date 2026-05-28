@@ -1,6 +1,7 @@
 import characterSkins from "@/data/character-skins.json";
 
 import { createSupabaseServerClient, isSupabaseConfigured } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SkinCatalog } from "@/lib/types";
 
 const jsonCatalog = characterSkins as unknown as SkinCatalog;
@@ -109,21 +110,47 @@ async function syncCharactersFromSkins() {
   if (error) throw new Error(error.message);
 }
 
+let seededPromise: Promise<void> | null = null;
+
 async function ensureCatalogSeeded() {
-  const supabase = createSupabaseServerClient();
-
-  const { count: skinCount, error: skinCountError } = await supabase
-    .from("catalog_skins")
-    .select("*", { count: "exact", head: true });
-
-  if (skinCountError) throw new Error(skinCountError.message);
-
-  if ((skinCount ?? 0) === 0) {
-    await seedSkinsFromJson();
+  if (seededPromise) {
+    return seededPromise;
   }
 
-  await seedCharactersFromJson();
-  await syncCharactersFromSkins();
+  seededPromise = (async () => {
+    const supabase = createSupabaseServerClient();
+
+    const { count: skinCount, error: skinCountError } = await supabase
+      .from("catalog_skins")
+      .select("*", { count: "exact", head: true });
+
+    if (skinCountError) throw new Error(skinCountError.message);
+
+    if ((skinCount ?? 0) === 0) {
+      await seedSkinsFromJson();
+      await seedCharactersFromJson();
+      await syncCharactersFromSkins();
+      return;
+    }
+
+    const { count: characterCount, error: characterCountError } = await supabase
+      .from("catalog_characters")
+      .select("*", { count: "exact", head: true });
+
+    if (characterCountError) throw new Error(characterCountError.message);
+
+    if ((characterCount ?? 0) === 0) {
+      await seedCharactersFromJson();
+      await syncCharactersFromSkins();
+    }
+  })();
+
+  try {
+    await seededPromise;
+  } catch (error) {
+    seededPromise = null;
+    throw error;
+  }
 }
 
 export async function loadCatalogFromDatabase(): Promise<SkinCatalog> {
@@ -190,17 +217,20 @@ export async function getCatalogSkinById(id: number): Promise<CatalogSkinRow | n
   return (data as CatalogSkinRow | null) ?? null;
 }
 
-export async function uploadSkinImage(input: {
-  character: string;
-  name: string;
-  rarity: string;
-  imageFile: File;
-}): Promise<string> {
+export async function uploadSkinImage(
+  input: {
+    character: string;
+    name: string;
+    rarity: string;
+    imageFile: File;
+  },
+  client?: SupabaseClient
+): Promise<string> {
   if (!isSupabaseConfigured()) {
     throw new Error("Supabase is required to upload skin images");
   }
 
-  const supabase = createSupabaseServerClient();
+  const supabase = client ?? createSupabaseServerClient();
   const extension = input.imageFile.name.split(".").pop()?.toLowerCase() || "png";
   const safeExt = ["png", "jpg", "jpeg", "webp", "gif"].includes(extension) ? extension : "png";
   const fileName = `${slug(input.character)}_${slug(input.name)}_${slug(input.rarity)}_${Date.now()}.${safeExt}`;
@@ -221,13 +251,16 @@ export async function uploadSkinImage(input: {
   return data.publicUrl;
 }
 
-export async function addCatalogSkin(input: {
-  character: string;
-  name: string;
-  rarity: string;
-  imagePath: string;
-}): Promise<CatalogSkinRow> {
-  const supabase = createSupabaseServerClient();
+export async function addCatalogSkin(
+  input: {
+    character: string;
+    name: string;
+    rarity: string;
+    imagePath: string;
+  },
+  client?: SupabaseClient
+): Promise<CatalogSkinRow> {
+  const supabase = client ?? createSupabaseServerClient();
 
   const { data, error } = await supabase
     .from("catalog_skins")
@@ -244,8 +277,11 @@ export async function addCatalogSkin(input: {
   return data as CatalogSkinRow;
 }
 
-export async function addCatalogCharacter(name: string): Promise<CatalogCharacterRow> {
-  const supabase = createSupabaseServerClient();
+export async function addCatalogCharacter(
+  name: string,
+  client?: SupabaseClient
+): Promise<CatalogCharacterRow> {
+  const supabase = client ?? createSupabaseServerClient();
 
   const { data, error } = await supabase
     .from("catalog_characters")
@@ -257,8 +293,12 @@ export async function addCatalogCharacter(name: string): Promise<CatalogCharacte
   return data as CatalogCharacterRow;
 }
 
-export async function updateCatalogCharacter(id: number, name: string): Promise<CatalogCharacterRow> {
-  const supabase = createSupabaseServerClient();
+export async function updateCatalogCharacter(
+  id: number,
+  name: string,
+  client?: SupabaseClient
+): Promise<CatalogCharacterRow> {
+  const supabase = client ?? createSupabaseServerClient();
 
   const { data: existing, error: existingError } = await supabase
     .from("catalog_characters")
@@ -298,8 +338,11 @@ export async function updateCatalogCharacter(id: number, name: string): Promise<
   return data as CatalogCharacterRow;
 }
 
-export async function deleteCatalogCharacter(id: number): Promise<boolean> {
-  const supabase = createSupabaseServerClient();
+export async function deleteCatalogCharacter(
+  id: number,
+  client?: SupabaseClient
+): Promise<boolean> {
+  const supabase = client ?? createSupabaseServerClient();
 
   const { data: existing, error: existingError } = await supabase
     .from("catalog_characters")
@@ -335,9 +378,10 @@ export async function updateCatalogSkin(
     name: string;
     rarity: string;
     imagePath?: string;
-  }
+  },
+  client?: SupabaseClient
 ): Promise<CatalogSkinRow> {
-  const supabase = createSupabaseServerClient();
+  const supabase = client ?? createSupabaseServerClient();
 
   const payload: {
     character: string;
@@ -365,8 +409,11 @@ export async function updateCatalogSkin(
   return data as CatalogSkinRow;
 }
 
-export async function deleteCatalogSkin(id: number): Promise<boolean> {
-  const supabase = createSupabaseServerClient();
+export async function deleteCatalogSkin(
+  id: number,
+  client?: SupabaseClient
+): Promise<boolean> {
+  const supabase = client ?? createSupabaseServerClient();
 
   const { data, error } = await supabase.from("catalog_skins").delete().eq("id", id).select("id");
 

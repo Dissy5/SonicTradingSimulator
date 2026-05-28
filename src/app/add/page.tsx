@@ -1,8 +1,18 @@
 import Link from "next/link";
 
 import { CatalogManager } from "@/components/CatalogManager";
+import { getCatalogManageData } from "@/lib/catalog-server";
+import { SKIN_RARITIES } from "@/lib/rarities";
 
-export default function AddHubPage() {
+export default async function AddHubPage() {
+  const catalog = await getCatalogManageData();
+  const initialData = {
+    characters: catalog.characters,
+    skins: catalog.skins,
+    rarities: SKIN_RARITIES,
+    readOnly: catalog.readOnly ?? false,
+  };
+
   return (
     <section className="space-y-8">
       <div>
@@ -25,7 +35,7 @@ export default function AddHubPage() {
         </div>
       </div>
 
-      <CatalogManager />
+      <CatalogManager initialData={initialData} />
     </section>
   );
 }

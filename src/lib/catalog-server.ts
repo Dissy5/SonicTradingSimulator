@@ -14,6 +14,7 @@ import {
   updateCatalogSkin,
   uploadSkinImage,
 } from "@/lib/catalog-db";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   getCharactersFromCatalog,
   getRaritiesForSkin,
@@ -107,31 +108,55 @@ export async function exists(character: string, skin: string, rarity: string) {
   return skinExists(catalog, character, skin, rarity);
 }
 
-export async function createCharacter(name: string): Promise<CatalogCharacterRow> {
-  return addCatalogCharacter(name.trim());
+export async function createCharacter(
+  name: string,
+  client?: SupabaseClient
+): Promise<CatalogCharacterRow> {
+  return addCatalogCharacter(name.trim(), client);
 }
 
-export async function renameCharacter(id: number, name: string): Promise<CatalogCharacterRow> {
-  return updateCatalogCharacter(id, name.trim());
+export async function renameCharacter(
+  id: number,
+  name: string,
+  client?: SupabaseClient
+): Promise<CatalogCharacterRow> {
+  return updateCatalogCharacter(id, name.trim(), client);
 }
 
-export async function removeCharacter(id: number): Promise<boolean> {
-  return deleteCatalogCharacter(id);
+export async function removeCharacter(id: number, client?: SupabaseClient): Promise<boolean> {
+  return deleteCatalogCharacter(id, client);
 }
 
-export async function createSkin(input: {
-  character: string;
-  name: string;
-  rarity: string;
-  imageFile: File;
-}): Promise<CatalogSkinRow> {
-  const imagePath = await uploadSkinImage(input);
-  return addCatalogSkin({
-    character: input.character,
-    name: input.name.trim(),
-    rarity: input.rarity,
-    imagePath,
-  });
+export async function createSkin(
+  input: {
+    character: string;
+    name: string;
+    rarity: string;
+    imageFile?: File;
+  },
+  client?: SupabaseClient
+): Promise<CatalogSkinRow> {
+  const imagePath = input.imageFile
+    ? await uploadSkinImage(
+        {
+          character: input.character,
+          name: input.name,
+          rarity: input.rarity,
+          imageFile: input.imageFile,
+        },
+        client
+      )
+    : "";
+
+  return addCatalogSkin(
+    {
+      character: input.character,
+      name: input.name.trim(),
+      rarity: input.rarity,
+      imagePath,
+    },
+    client
+  );
 }
 
 export async function editSkin(
@@ -141,27 +166,35 @@ export async function editSkin(
     name: string;
     rarity: string;
     imageFile?: File;
-  }
+  },
+  client?: SupabaseClient
 ): Promise<CatalogSkinRow> {
   const imagePath = input.imageFile
-    ? await uploadSkinImage({
-        character: input.character,
-        name: input.name,
-        rarity: input.rarity,
-        imageFile: input.imageFile,
-      })
+    ? await uploadSkinImage(
+        {
+          character: input.character,
+          name: input.name,
+          rarity: input.rarity,
+          imageFile: input.imageFile,
+        },
+        client
+      )
     : undefined;
 
-  return updateCatalogSkin(id, {
-    character: input.character,
-    name: input.name.trim(),
-    rarity: input.rarity,
-    imagePath,
-  });
+  return updateCatalogSkin(
+    id,
+    {
+      character: input.character,
+      name: input.name.trim(),
+      rarity: input.rarity,
+      imagePath,
+    },
+    client
+  );
 }
 
-export async function removeSkin(id: number): Promise<boolean> {
-  return deleteCatalogSkin(id);
+export async function removeSkin(id: number, client?: SupabaseClient): Promise<boolean> {
+  return deleteCatalogSkin(id, client);
 }
 
 export { jsonCatalog as catalog };

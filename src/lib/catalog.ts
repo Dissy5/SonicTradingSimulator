@@ -33,7 +33,8 @@ export function getSkinImagePath(
     ([name, entryRarity]) => name === skin && entryRarity === rarity
   );
   if (!entry) return null;
-  const path = entry[2];
+  const path = entry[2]?.trim();
+  if (!path) return null;
   if (path.startsWith("http://") || path.startsWith("https://")) {
     return path;
   }
@@ -46,5 +47,9 @@ export function skinExists(
   skin: string,
   rarity: string
 ): boolean {
-  return getSkinImagePath(catalog, character, skin, rarity) != null;
+  return (
+    catalog[character]?.some(
+      ([name, entryRarity]) => name === skin && entryRarity === rarity
+    ) ?? false
+  );
 }

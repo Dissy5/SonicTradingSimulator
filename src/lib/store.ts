@@ -1,4 +1,5 @@
 import { createSupabaseServerClient, isSupabaseConfigured, type SaleRow } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Sale } from "@/lib/types";
 
 import * as localStore from "./store-local";
@@ -12,6 +13,8 @@ function rowToSale(row: SaleRow): Sale {
     star: row.star,
     price: row.price,
     createdAt: row.created_at,
+    createdBy: row.created_by,
+    recordedBy: row.recorded_by_email,
   };
 }
 
@@ -30,12 +33,30 @@ export async function listSales(): Promise<Sale[]> {
   return (data as SaleRow[]).map(rowToSale);
 }
 
-export async function addSale(input: Omit<Sale, "id" | "createdAt">): Promise<Sale> {
+export type AddSaleInput = {
+  character: string;
+  skin: string;
+  rarity: string;
+  star: number;
+  price: number;
+};
+
+export type AddSaleContext = {
+  userId: string;
+  recordedBy: string;
+  supabase?: SupabaseClient;
+};
+
+export async function addSale(input: AddSaleInput, context: AddSaleContext): Promise<Sale> {
   if (!isSupabaseConfigured()) {
-    return localStore.addSale(input);
+    return localStore.addSale(input, context);
   }
 
-  const supabase = createSupabaseServerClient();
+  const supabase = context.supabase;
+  if (!supabase) {
+    throw new Error("Authenticated Supabase client required");
+  }
+
   const { data, error } = await supabase
     .from("sales")
     .insert({
@@ -44,6 +65,8 @@ export async function addSale(input: Omit<Sale, "id" | "createdAt">): Promise<Sa
       rarity: input.rarity,
       star: input.star,
       price: input.price,
+      created_by: context.userId,
+      recorded_by_email: context.recordedBy,
     })
     .select("*")
     .single();
@@ -52,12 +75,15 @@ export async function addSale(input: Omit<Sale, "id" | "createdAt">): Promise<Sa
   return rowToSale(data as SaleRow);
 }
 
-export async function deleteSale(id: number): Promise<boolean> {
+export async function deleteSale(id: number, supabase?: SupabaseClient): Promise<boolean> {
   if (!isSupabaseConfigured()) {
     return localStore.deleteSale(id);
   }
 
-  const supabase = createSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Authenticated Supabase client required");
+  }
+
   const { data, error } = await supabase.from("sales").delete().eq("id", id).select("id");
 
   if (error) throw new Error(error.message);

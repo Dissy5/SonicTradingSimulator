@@ -1,8 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
+
+import { SkinImage } from "@/components/SkinImage";
 
 import { SKIN_RARITIES } from "@/lib/rarities";
 
@@ -46,7 +47,7 @@ export function AddSkinForm() {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!character || !name.trim() || !rarity || !image) return;
+    if (!character || !name.trim() || !rarity) return;
 
     setSubmitting(true);
     setMessage(null);
@@ -56,7 +57,9 @@ export function AddSkinForm() {
     formData.append("character", character);
     formData.append("name", name.trim());
     formData.append("rarity", rarity);
-    formData.append("image", image);
+    if (image) {
+      formData.append("image", image);
+    }
 
     try {
       const addedName = name.trim();
@@ -136,11 +139,10 @@ export function AddSkinForm() {
           </label>
 
           <label className="block text-sm text-zinc-400">
-            Skin image
+            Skin image <span className="text-zinc-600">(optional)</span>
             <input
               type="file"
               accept="image/png,image/jpeg,image/webp,image/gif"
-              required
               className="mt-1 block w-full text-sm text-zinc-300 file:mr-3 file:rounded-md file:border-0 file:bg-zinc-800 file:px-3 file:py-2 file:text-zinc-100"
               onChange={(event) => setImage(event.target.files?.[0] ?? null)}
             />
@@ -148,7 +150,7 @@ export function AddSkinForm() {
 
           <button
             type="submit"
-            disabled={submitting || !character || !name.trim() || !image}
+            disabled={submitting || !character || !name.trim()}
             className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-500 disabled:opacity-50"
           >
             {submitting ? "Adding…" : "Add skin"}
@@ -162,16 +164,9 @@ export function AddSkinForm() {
       <div className="flex min-h-80 flex-col items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6">
         <h2 className="mb-4 self-start text-lg font-semibold">Preview</h2>
         {previewUrl ? (
-          <Image
-            src={previewUrl}
-            alt="Skin preview"
-            width={240}
-            height={240}
-            className="max-h-60 w-auto object-contain"
-            unoptimized
-          />
+          <SkinImage src={previewUrl} alt="Skin preview" variant="preview" />
         ) : (
-          <p className="text-sm text-zinc-500">Choose an image to preview</p>
+          <SkinImage src={null} alt="No skin image" variant="preview" />
         )}
       </div>
     </div>

@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
+import { SkinImage } from "@/components/SkinImage";
 import { SalesTable } from "@/components/SalesTable";
 import {
   getCharactersFromCatalog,
@@ -18,7 +18,7 @@ type RecordSaleFormProps = {
 };
 
 async function postJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, init);
+  const res = await fetch(url, { credentials: "same-origin", ...init });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error ?? res.statusText);
@@ -214,15 +214,8 @@ export function RecordSaleForm({ catalog }: RecordSaleFormProps) {
 
         <div className="flex min-h-80 flex-col items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6">
           <h2 className="mb-4 self-start text-lg font-semibold">Preview</h2>
-          {imagePath ? (
-            <Image
-              src={imagePath}
-              alt={`${character} ${skin}`}
-              width={240}
-              height={240}
-              className="max-h-60 w-auto object-contain"
-              unoptimized
-            />
+          {character && skin && rarity ? (
+            <SkinImage src={imagePath} alt={`${character} ${skin}`} variant="preview" />
           ) : (
             <p className="text-sm text-zinc-500">Select a skin to preview</p>
           )}
@@ -239,6 +232,7 @@ export function RecordSaleForm({ catalog }: RecordSaleFormProps) {
             sales={recentSales}
             showCharacter={false}
             showSkin={false}
+            showRecordedBy
           />
         </section>
       )}

@@ -1,7 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
+
+import { SkinImage } from "@/components/SkinImage";
 
 import { SKIN_RARITIES } from "@/lib/rarities";
 
@@ -25,8 +26,13 @@ type ManageData = {
   readOnly?: boolean;
 };
 
-export function CatalogManager() {
-  const [data, setData] = useState<ManageData | null>(null);
+type CatalogManagerProps = {
+  initialData?: ManageData;
+};
+
+export function CatalogManager({ initialData }: CatalogManagerProps) {
+  const [data, setData] = useState<ManageData | null>(initialData ?? null);
+  const [loading, setLoading] = useState(!initialData);
   const [error, setError] = useState<string | null>(null);
   const [skinFilter, setSkinFilter] = useState("");
 
@@ -47,22 +53,35 @@ export function CatalogManager() {
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
+    setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/catalog/manage");
-      const body = await res.json();
+      const res = await fetch("/api/catalog/manage", { credentials: "same-origin" });
+      const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(body.error ?? "Failed to load catalog");
+        if (res.status === 401) {
+          throw new Error("Sign in required — refresh the page or sign in again.");
+        }
+        if (res.status === 403) {
+          throw new Error("Admin access required.");
+        }
+        throw new Error(
+          typeof body.error === "string" ? body.error : "Failed to load catalog"
+        );
       }
       setData(body as ManageData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load catalog");
+    } finally {
+      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (!initialData) {
+      load();
+    }
+  }, [initialData, load]);
 
   function startEditCharacter(character: CatalogCharacter) {
     setEditingCharacterId(character.id);
@@ -177,8 +196,23 @@ export function CatalogManager() {
     }
   }
 
-  if (!data) {
+  if (loading && !data) {
     return <p className="text-sm text-zinc-400">Loading catalog…</p>;
+  }
+
+  if (!data) {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-red-400">{error ?? "Failed to load catalog."}</p>
+        <button
+          type="button"
+          onClick={load}
+          className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-200 hover:bg-zinc-900"
+        >
+          Retry
+        </button>
+      </div>
+    );
   }
 
   const filteredSkins =
@@ -313,13 +347,9 @@ export function CatalogManager() {
                 return (
                   <tr key={skin.id} className="border-t border-zinc-800">
                     <td className="px-3 py-2">
-                      <Image
+                      <SkinImage
                         src={skin.image_path}
                         alt={`${skin.character} ${skin.name}`}
-                        width={40}
-                        height={40}
-                        className="h-10 w-10 rounded-md bg-black object-contain"
-                        unoptimized
                       />
                     </td>
                     <td className="px-4 py-3">
