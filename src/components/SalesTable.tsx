@@ -1,6 +1,7 @@
 "use client";
 
 import { SkinImage } from "@/components/SkinImage";
+import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { getSkinImagePath } from "@/lib/catalog";
 import { formatPrice } from "@/lib/format";
 import type { Sale, SkinCatalog } from "@/lib/types";
@@ -68,13 +69,7 @@ export function SalesTable({
                 {onDelete && (
                   <td className="px-4 py-3">
                     {showDelete ? (
-                      <button
-                        type="button"
-                        onClick={() => onDelete(sale.id)}
-                        className="rounded-md bg-red-600/90 px-2 py-1 text-xs text-white hover:bg-red-500"
-                      >
-                        Delete
-                      </button>
+                      <ConfirmDeleteButton onConfirm={() => onDelete(sale.id)} />
                     ) : null}
                   </td>
                 )}

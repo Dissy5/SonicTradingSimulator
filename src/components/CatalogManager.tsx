@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { SkinImage } from "@/components/SkinImage";
 
 import { SKIN_RARITIES } from "@/lib/rarities";
@@ -34,7 +35,7 @@ export function CatalogManager({ initialData }: CatalogManagerProps) {
   const [data, setData] = useState<ManageData | null>(initialData ?? null);
   const [loading, setLoading] = useState(!initialData);
   const [error, setError] = useState<string | null>(null);
-  const [skinFilter, setSkinFilter] = useState("");
+  const [selectedCharacter, setSelectedCharacter] = useState("");
 
   const [editingCharacterId, setEditingCharacterId] = useState<number | null>(null);
   const [characterDraft, setCharacterDraft] = useState("");
@@ -83,6 +84,20 @@ export function CatalogManager({ initialData }: CatalogManagerProps) {
     }
   }, [initialData, load]);
 
+  useEffect(() => {
+    if (!data || data.characters.length === 0) {
+      setSelectedCharacter("");
+      return;
+    }
+
+    const stillExists = data.characters.some(
+      (character) => character.name === selectedCharacter
+    );
+    if (!stillExists) {
+      setSelectedCharacter(data.characters[0].name);
+    }
+  }, [data, selectedCharacter]);
+
   function startEditCharacter(character: CatalogCharacter) {
     setEditingCharacterId(character.id);
     setCharacterDraft(character.name);
@@ -113,9 +128,7 @@ export function CatalogManager({ initialData }: CatalogManagerProps) {
     }
   }
 
-  async function deleteCharacter(id: number, name: string) {
-    if (!window.confirm(`Delete "${name}" and all of their skins?`)) return;
-
+  async function deleteCharacter(id: number) {
     setBusy(true);
     setError(null);
     try {
@@ -127,6 +140,7 @@ export function CatalogManager({ initialData }: CatalogManagerProps) {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete character");
+      throw err;
     } finally {
       setBusy(false);
     }
@@ -177,9 +191,7 @@ export function CatalogManager({ initialData }: CatalogManagerProps) {
     }
   }
 
-  async function deleteSkin(id: number, label: string) {
-    if (!window.confirm(`Delete skin "${label}"?`)) return;
-
+  async function deleteSkin(id: number) {
     setBusy(true);
     setError(null);
     try {
@@ -191,6 +203,7 @@ export function CatalogManager({ initialData }: CatalogManagerProps) {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete skin");
+      throw err;
     } finally {
       setBusy(false);
     }
@@ -215,10 +228,10 @@ export function CatalogManager({ initialData }: CatalogManagerProps) {
     );
   }
 
-  const filteredSkins =
-    skinFilter === ""
-      ? data.skins
-      : data.skins.filter((skin) => skin.character === skinFilter);
+  const characterSkins =
+    selectedCharacter === ""
+      ? []
+      : data.skins.filter((skin) => skin.character === selectedCharacter);
 
   return (
     <div className="space-y-8">
@@ -290,14 +303,12 @@ export function CatalogManager({ initialData }: CatalogManagerProps) {
                             >
                               Edit
                             </button>
-                            <button
-                              type="button"
+                            <ConfirmDeleteButton
                               disabled={busy || data.readOnly}
-                              onClick={() => deleteCharacter(character.id, character.name)}
-                              className="rounded-md border border-red-900 px-2 py-1 text-xs text-red-300 hover:bg-red-950"
-                            >
-                              Delete
-                            </button>
+                              onConfirm={() => deleteCharacter(character.id)}
+                              className="rounded-md border border-red-900 px-2 py-1 text-xs text-red-300 hover:bg-red-950 disabled:opacity-50"
+                              confirmingClassName="rounded-md border border-red-600 bg-red-600/20 px-2 py-1 text-xs text-red-200 disabled:opacity-50"
+                            />
                           </>
                         )}
                       </div>
@@ -314,164 +325,160 @@ export function CatalogManager({ initialData }: CatalogManagerProps) {
         <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-lg font-semibold">Skins</h2>
           <label className="text-sm text-zinc-400">
-            Filter by character
+            Character
             <select
               className="ml-2 rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100"
-              value={skinFilter}
-              onChange={(event) => setSkinFilter(event.currentTarget.value)}
+              value={selectedCharacter}
+              onChange={(event) => {
+                setSelectedCharacter(event.currentTarget.value);
+                setEditingSkinId(null);
+                setSkinImage(null);
+              }}
             >
-              <option value="">All</option>
-              {data.characters.map((character) => (
-                <option key={character.id} value={character.name}>
-                  {character.name}
-                </option>
-              ))}
+              {data.characters.length === 0 ? (
+                <option value="">No characters</option>
+              ) : (
+                data.characters.map((character) => (
+                  <option key={character.id} value={character.name}>
+                    {character.name}
+                  </option>
+                ))
+              )}
             </select>
           </label>
         </div>
-        <div className="overflow-x-auto rounded-2xl border border-zinc-800">
-          <table className="min-w-full text-left text-sm">
-            <thead className="bg-zinc-900 text-zinc-400">
-              <tr>
-                <th className="w-14 px-3 py-3 font-medium"></th>
-                <th className="px-4 py-3 font-medium">Character</th>
-                <th className="px-4 py-3 font-medium">Skin</th>
-                <th className="px-4 py-3 font-medium">Rarity</th>
-                <th className="px-4 py-3 font-medium"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredSkins.map((skin) => {
-                const editing = editingSkinId === skin.id;
-
-                return (
-                  <tr key={skin.id} className="border-t border-zinc-800">
-                    <td className="px-3 py-2">
-                      <SkinImage
-                        src={skin.image_path}
-                        alt={`${skin.character} ${skin.name}`}
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      {editing ? (
-                        <select
-                          className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100"
-                          value={skinDraft.character}
-                          onChange={(event) =>
-                            setSkinDraft((draft) => ({
-                              ...draft,
-                              character: event.currentTarget.value,
-                            }))
-                          }
-                        >
-                          {data.characters.map((character) => (
-                            <option key={character.id} value={character.name}>
-                              {character.name}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        skin.character
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      {editing ? (
-                        <input
-                          className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100"
-                          value={skinDraft.name}
-                          onChange={(event) =>
-                            setSkinDraft((draft) => ({ ...draft, name: event.currentTarget.value }))
-                          }
-                        />
-                      ) : (
-                        skin.name
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      {editing ? (
-                        <select
-                          className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100"
-                          value={skinDraft.rarity}
-                          onChange={(event) =>
-                            setSkinDraft((draft) => ({ ...draft, rarity: event.currentTarget.value }))
-                          }
-                        >
-                          {data.rarities.map((rarity) => (
-                            <option key={rarity} value={rarity}>
-                              {rarity}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        skin.rarity
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col items-end gap-2">
-                        {editing && (
-                          <input
-                            type="file"
-                            accept="image/png,image/jpeg,image/webp,image/gif"
-                            className="max-w-40 text-xs text-zinc-400"
-                            onChange={(event) => setSkinImage(event.target.files?.[0] ?? null)}
-                          />
-                        )}
-                        <div className="flex gap-2">
-                          {editing ? (
-                            <>
-                              <button
-                                type="button"
-                                disabled={busy}
-                                onClick={() => saveSkin(skin.id)}
-                                className="rounded-md bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50"
-                              >
-                                Save
-                              </button>
-                              <button
-                                type="button"
-                                disabled={busy}
-                                onClick={() => {
-                                  setEditingSkinId(null);
-                                  setSkinImage(null);
-                                }}
-                                className="rounded-md border border-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800"
-                              >
-                                Cancel
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                type="button"
-                                disabled={busy || data.readOnly}
-                                onClick={() => startEditSkin(skin)}
-                                className="rounded-md border border-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                disabled={busy || data.readOnly}
-                                onClick={() =>
-                                  deleteSkin(skin.id, `${skin.character} — ${skin.name} (${skin.rarity})`)
-                                }
-                                className="rounded-md border border-red-900 px-2 py-1 text-xs text-red-300 hover:bg-red-950"
-                              >
-                                Delete
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </td>
+        {selectedCharacter === "" ? (
+          <p className="text-sm text-zinc-500">Add a character to manage skins.</p>
+        ) : (
+          <>
+            <div className="overflow-x-auto rounded-2xl border border-zinc-800">
+              <table className="min-w-full text-left text-sm">
+                <thead className="bg-zinc-900 text-zinc-400">
+                  <tr>
+                    <th className="w-14 px-3 py-3 font-medium"></th>
+                    <th className="px-4 py-3 font-medium">Skin</th>
+                    <th className="px-4 py-3 font-medium">Rarity</th>
+                    <th className="px-4 py-3 font-medium"></th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        {filteredSkins.length === 0 && (
-          <p className="mt-3 text-sm text-zinc-500">No skins match this filter.</p>
+                </thead>
+                <tbody>
+                  {characterSkins.map((skin) => {
+                    const editing = editingSkinId === skin.id;
+
+                    return (
+                      <tr key={skin.id} className="border-t border-zinc-800">
+                        <td className="px-3 py-2">
+                          <SkinImage
+                            src={skin.image_path}
+                            alt={`${skin.character} ${skin.name}`}
+                          />
+                        </td>
+                        <td className="px-4 py-3">
+                          {editing ? (
+                            <input
+                              className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100"
+                              value={skinDraft.name}
+                              onChange={(event) =>
+                                setSkinDraft((draft) => ({
+                                  ...draft,
+                                  name: event.currentTarget.value,
+                                }))
+                              }
+                            />
+                          ) : (
+                            skin.name
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          {editing ? (
+                            <select
+                              className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-1 text-zinc-100"
+                              value={skinDraft.rarity}
+                              onChange={(event) =>
+                                setSkinDraft((draft) => ({
+                                  ...draft,
+                                  rarity: event.currentTarget.value,
+                                }))
+                              }
+                            >
+                              {data.rarities.map((rarity) => (
+                                <option key={rarity} value={rarity}>
+                                  {rarity}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            skin.rarity
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col items-end gap-2">
+                            {editing && (
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp,image/gif"
+                                className="max-w-40 text-xs text-zinc-400"
+                                onChange={(event) =>
+                                  setSkinImage(event.target.files?.[0] ?? null)
+                                }
+                              />
+                            )}
+                            <div className="flex gap-2">
+                              {editing ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => saveSkin(skin.id)}
+                                    className="rounded-md bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50"
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => {
+                                      setEditingSkinId(null);
+                                      setSkinImage(null);
+                                    }}
+                                    className="rounded-md border border-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800"
+                                  >
+                                    Cancel
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button
+                                    type="button"
+                                    disabled={busy || data.readOnly}
+                                    onClick={() => startEditSkin(skin)}
+                                    className="rounded-md border border-zinc-700 px-2 py-1 text-xs text-zinc-300 hover:bg-zinc-800"
+                                  >
+                                    Edit
+                                  </button>
+                                  <ConfirmDeleteButton
+                                    disabled={busy || data.readOnly}
+                                    onConfirm={() => deleteSkin(skin.id)}
+                                    className="rounded-md border border-red-900 px-2 py-1 text-xs text-red-300 hover:bg-red-950 disabled:opacity-50"
+                                    confirmingClassName="rounded-md border border-red-600 bg-red-600/20 px-2 py-1 text-xs text-red-200 disabled:opacity-50"
+                                  />
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {characterSkins.length === 0 && (
+              <p className="mt-3 text-sm text-zinc-500">
+                No skins for {selectedCharacter} yet.
+              </p>
+            )}
+          </>
         )}
       </section>
     </div>

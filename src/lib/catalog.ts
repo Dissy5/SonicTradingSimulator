@@ -10,6 +10,15 @@ export function getSkinsForCharacter(catalog: SkinCatalog, character: string): s
   return [...new Set(entries.map(([name]) => name))].sort();
 }
 
+export function getDefaultSkinForCharacter(
+  catalog: SkinCatalog,
+  character: string
+): string {
+  const skins = getSkinsForCharacter(catalog, character);
+  if (skins.includes("Default")) return "Default";
+  return skins[0] ?? "";
+}
+
 export function getRaritiesForSkin(
   catalog: SkinCatalog,
   character: string,

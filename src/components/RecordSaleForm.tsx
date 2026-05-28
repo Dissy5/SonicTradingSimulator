@@ -6,6 +6,7 @@ import { SkinImage } from "@/components/SkinImage";
 import { SalesTable } from "@/components/SalesTable";
 import {
   getCharactersFromCatalog,
+  getDefaultSkinForCharacter,
   getRaritiesForSkin,
   getSkinImagePath,
   getSkinsForCharacter,
@@ -32,7 +33,7 @@ export function RecordSaleForm({ catalog }: RecordSaleFormProps) {
   const [skin, setSkin] = useState("");
   const [rarity, setRarity] = useState("");
   const [star, setStar] = useState(1);
-  const [price, setPrice] = useState(0);
+  const [priceInput, setPriceInput] = useState("");
   const [average, setAverage] = useState<number | null>(null);
   const [recentSales, setRecentSales] = useState<Sale[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -63,8 +64,7 @@ export function RecordSaleForm({ catalog }: RecordSaleFormProps) {
   }, [character, skin]);
 
   useEffect(() => {
-    const options = getSkinsForCharacter(catalog, character);
-    setSkin(options[0] ?? "");
+    setSkin(getDefaultSkinForCharacter(catalog, character));
   }, [catalog, character]);
 
   useEffect(() => {
@@ -101,6 +101,12 @@ export function RecordSaleForm({ catalog }: RecordSaleFormProps) {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    const price = Number(priceInput);
+    if (priceInput === "" || !Number.isInteger(price) || price < 0) {
+      setMessage("Enter a valid price.");
+      return;
+    }
+
     setSubmitting(true);
     setMessage(null);
     try {
@@ -109,7 +115,7 @@ export function RecordSaleForm({ catalog }: RecordSaleFormProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ character, skin, rarity, star, price }),
       });
-      setPrice(0);
+      setPriceInput("");
       const data = await postJson<{ average: number | null }>(
         `/api/average-price?character=${encodeURIComponent(character)}&skin=${encodeURIComponent(skin)}&rarity=${encodeURIComponent(rarity)}&star=${star}`
       );
@@ -189,9 +195,11 @@ export function RecordSaleForm({ catalog }: RecordSaleFormProps) {
                 <input
                   type="number"
                   min={0}
+                  step={1}
+                  placeholder="Enter price"
                   className="mt-1 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-zinc-100"
-                  value={price}
-                  onChange={(event) => setPrice(Number(event.currentTarget.value))}
+                  value={priceInput}
+                  onChange={(event) => setPriceInput(event.currentTarget.value)}
                 />
               </label>
             </div>
@@ -203,7 +211,7 @@ export function RecordSaleForm({ catalog }: RecordSaleFormProps) {
             </p>
             <button
               type="submit"
-              disabled={submitting || !character || !skin || !rarity}
+              disabled={submitting || !character || !skin || !rarity || priceInput === ""}
               className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-500 disabled:opacity-50"
             >
               {submitting ? "Saving…" : "Submit sale"}

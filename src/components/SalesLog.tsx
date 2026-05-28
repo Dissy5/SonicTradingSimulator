@@ -81,8 +81,9 @@ export function SalesLog({ catalog }: SalesLogProps) {
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      setError(typeof body.error === "string" ? body.error : "Failed to delete sale");
-      return;
+      const message = typeof body.error === "string" ? body.error : "Failed to delete sale";
+      setError(message);
+      throw new Error(message);
     }
     await loadSales();
   }

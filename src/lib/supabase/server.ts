@@ -51,3 +51,31 @@ export type SaleRow = {
   created_by: string | null;
   recorded_by_email: string | null;
 };
+
+export type FlipRow = {
+  id: number;
+  character: string;
+  skin: string;
+  rarity: string;
+  star: number;
+  buy_price: number;
+  planned_sell_price: number | null;
+  sell_price: number | null;
+  bought_at: string;
+  sold_at: string | null;
+  created_by: string;
+  recorded_by_email: string | null;
+};
+
+export type ShopListingRow = {
+  id: number;
+  slot_index: number;
+  character: string;
+  skin: string;
+  rarity: string;
+  star: number;
+  price: number;
+  created_by: string;
+  recorded_by_email: string | null;
+  created_at: string;
+};

@@ -69,7 +69,10 @@ export function NavClient({ initialUser, initialAdmin }: NavClientProps) {
 
   const links = [
     { href: "/", label: "Record Sale" },
+    { href: "/shop", label: "Shop" },
+    { href: "/flips", label: "Flips" },
     { href: "/sales", label: "Sales Log" },
+    { href: "/values", label: "Values" },
     ...(admin ? [{ href: "/add", label: "Catalog" }] : []),
   ];
 
