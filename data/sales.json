@@ -1,0 +1,20 @@
+[
+  {
+    "id": 2,
+    "character": "Sonic",
+    "skin": "Default",
+    "rarity": "Rare",
+    "star": 1,
+    "price": 5000,
+    "createdAt": "2026-05-27T23:36:41.000Z"
+  },
+  {
+    "id": 1,
+    "character": "Shadow",
+    "skin": "Super Shadow",
+    "rarity": "Super",
+    "star": 1,
+    "price": 1,
+    "createdAt": "2025-09-11T10:16:57.000Z"
+  }
+]
