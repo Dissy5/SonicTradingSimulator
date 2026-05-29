@@ -106,7 +106,7 @@ export function FlipsList({ catalog, refreshKey = 0 }: FlipsListProps) {
           <table className="min-w-full text-left text-sm">
             <thead className="bg-zinc-900 text-zinc-400">
               <tr>
-                <th className="w-14 px-3 py-3 font-medium"></th>
+                <th className="w-16 px-3 py-3 font-medium"></th>
                 <th className="px-4 py-3 font-medium">Skin</th>
                 <th className="px-4 py-3 font-medium">Star</th>
                 <th className="px-4 py-3 font-medium">Buy</th>

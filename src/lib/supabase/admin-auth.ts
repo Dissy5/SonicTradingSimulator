@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 export function isAuthAdminConfigured(): boolean {
   return Boolean(
@@ -6,32 +6,39 @@ export function isAuthAdminConfigured(): boolean {
   );
 }
 
-/**
- * Removes a rejected auth.users row via the Supabase secret key (SUPABASE_SERVICE_ROLE_KEY).
- * Used after allowlist denial so orphan accounts do not accumulate in the dashboard.
- */
-export async function deleteAuthUser(userId: string): Promise<boolean> {
+export function createSupabaseAdminClient(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url || !serviceRoleKey) {
-    console.warn(
-      "SUPABASE_SERVICE_ROLE_KEY is not set; rejected sign-in user was not deleted from Supabase Auth"
-    );
-    return false;
+    throw new Error("Admin API is not configured (missing SUPABASE_SERVICE_ROLE_KEY)");
   }
 
-  const admin = createClient(url, serviceRoleKey, {
+  return createClient(url, serviceRoleKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
     },
   });
+}
 
+/**
+ * Removes an auth.users row via the Supabase service role key.
+ * Cascades to public.profiles and related FK rows.
+ */
+export async function deleteAuthUser(userId: string): Promise<boolean> {
+  if (!isAuthAdminConfigured()) {
+    console.warn(
+      "SUPABASE_SERVICE_ROLE_KEY is not set; auth user was not deleted from Supabase Auth"
+    );
+    return false;
+  }
+
+  const admin = createSupabaseAdminClient();
   const { error } = await admin.auth.admin.deleteUser(userId);
 
   if (error) {
-    console.error("Failed to delete rejected auth user:", error.message);
+    console.error("Failed to delete auth user:", error.message);
     return false;
   }
 

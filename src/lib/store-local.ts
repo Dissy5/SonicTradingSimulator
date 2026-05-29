@@ -1,7 +1,20 @@
 import fs from "fs/promises";
 import path from "path";
 
+import { todayLocalDateString } from "./format";
 import type { Transaction, TransactionType } from "./types";
+import { getValuesIncludedUserIds } from "./values-exclusions";
+import { weightedAveragePrice } from "./values-weighting";
+
+const LEGACY_TRANSACTION_DATE = "2026-05-27";
+
+type ManualValueInput = {
+  character: string;
+  skin: string;
+  rarity: string;
+  star: number;
+  price: number;
+};
 
 const salesPath = path.join(process.cwd(), "data", "sales.json");
 
@@ -26,9 +39,11 @@ async function readTransactions(): Promise<Transaction[]> {
     rarity: entry.rarity ?? "",
     star: entry.star ?? 1,
     price: entry.price ?? 0,
+    date: entry.date ?? entry.createdAt?.slice(0, 10) ?? LEGACY_TRANSACTION_DATE,
     createdAt: entry.createdAt ?? new Date(0).toISOString(),
     createdBy: entry.createdBy ?? null,
     recordedBy: entry.recordedBy ?? null,
+    manualValueOnly: entry.manualValueOnly === true,
   }));
 }
 
@@ -39,11 +54,31 @@ async function writeTransactions(transactions: Transaction[]) {
 
 export async function listTransactions(): Promise<Transaction[]> {
   const transactions = await readTransactions();
-  return transactions.sort((a, b) => b.id - a.id);
+  return transactions
+    .filter((entry) => entry.manualValueOnly !== true)
+    .sort((a, b) => b.id - a.id);
+}
+
+export async function listTransactionsForValues(options?: {
+  userId?: string | null;
+}): Promise<Transaction[]> {
+  const sales = (await readTransactions()).filter((entry) => entry.type === "sale");
+
+  if (options?.userId) {
+    return sales.filter(
+      (entry) => entry.createdBy === options.userId && entry.manualValueOnly !== true
+    );
+  }
+
+  const includedUserIds = await getValuesIncludedUserIds();
+  return sales.filter((entry) => {
+    if (entry.manualValueOnly) return true;
+    return entry.createdBy != null && includedUserIds.has(entry.createdBy);
+  });
 }
 
 export async function addTransaction(
-  input: Omit<Transaction, "id" | "createdAt" | "createdBy" | "recordedBy">,
+  input: Omit<Transaction, "id" | "date" | "createdAt" | "createdBy" | "recordedBy" | "manualValueOnly">,
   context: { userId: string; recordedBy: string }
 ): Promise<Transaction> {
   const transactions = await readTransactions();
@@ -51,9 +86,36 @@ export async function addTransaction(
   const transaction: Transaction = {
     ...input,
     id: nextId,
+    date: todayLocalDateString(),
     createdAt: new Date().toISOString(),
     createdBy: context.userId,
     recordedBy: context.recordedBy,
+    manualValueOnly: false,
+  };
+  transactions.push(transaction);
+  await writeTransactions(transactions);
+  return transaction;
+}
+
+export async function addManualValueTransaction(
+  input: ManualValueInput,
+  context: { userId: string; recordedBy: string }
+): Promise<Transaction> {
+  const transactions = await readTransactions();
+  const nextId = transactions.reduce((max, entry) => Math.max(max, entry.id), 0) + 1;
+  const transaction: Transaction = {
+    type: "sale",
+    character: input.character,
+    skin: input.skin,
+    rarity: input.rarity,
+    star: input.star,
+    price: input.price,
+    id: nextId,
+    date: todayLocalDateString(),
+    createdAt: new Date().toISOString(),
+    createdBy: context.userId,
+    recordedBy: context.recordedBy,
+    manualValueOnly: true,
   };
   transactions.push(transaction);
   await writeTransactions(transactions);
@@ -108,9 +170,25 @@ export async function getAveragePrice(
       entry.rarity === rarity &&
       entry.star === star
   );
-  if (matches.length === 0) return null;
-  const total = matches.reduce((sum, entry) => sum + entry.price, 0);
-  return Math.round(total / matches.length);
+
+  let rows = matches;
+  if (type === "sale") {
+    const includedUserIds = await getValuesIncludedUserIds();
+    rows = matches.filter(
+      (entry) =>
+        entry.manualValueOnly === true ||
+        (entry.createdBy != null && includedUserIds.has(entry.createdBy))
+    );
+  }
+
+  if (rows.length === 0) return null;
+
+  return weightedAveragePrice(
+    rows.map((entry) => ({
+      price: entry.price,
+      date: entry.date,
+    }))
+  );
 }
 
 export async function listRecentTransactionsByCharacterSkin(
@@ -120,7 +198,12 @@ export async function listRecentTransactionsByCharacterSkin(
 ): Promise<Transaction[]> {
   const transactions = await readTransactions();
   return transactions
-    .filter((entry) => entry.character === character && entry.skin === skin)
+    .filter(
+      (entry) =>
+        entry.manualValueOnly !== true &&
+        entry.character === character &&
+        entry.skin === skin
+    )
     .sort((a, b) => b.id - a.id)
     .slice(0, limit);
 }

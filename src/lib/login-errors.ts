@@ -60,12 +60,12 @@ export function getLoginErrorMessage(
       if (decodedEmail) {
         return {
           title: `Couldn't sign in with ${decodedEmail}`,
-          body: "That Google account isn't authorized for this app yet. Try a different account, or browse the sales log without signing in.",
+          body: "Google didn't authorize that account for this app. Add it as a test user in Google Cloud Console, or try a different account.",
         };
       }
       return {
         title: "Sign-in not allowed",
-        body: "That Google account hasn't been invited yet. The app is in testing mode, so only approved accounts can sign in. Try a different account, or browse the sales log without signing in.",
+        body: "Google didn't authorize that account for this app. The OAuth app is in testing mode, so only approved test users can sign in.",
       };
     case "denied":
       return {

@@ -41,6 +41,7 @@ async function main() {
     rarity: entry.rarity,
     star: entry.star,
     price: entry.price,
+    transaction_date: entry.date ?? entry.createdAt.slice(0, 10),
     created_at: entry.createdAt,
   }));
 

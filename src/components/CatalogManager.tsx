@@ -355,7 +355,7 @@ export function CatalogManager({ initialData }: CatalogManagerProps) {
               <table className="min-w-full text-left text-sm">
                 <thead className="bg-zinc-900 text-zinc-400">
                   <tr>
-                    <th className="w-14 px-3 py-3 font-medium"></th>
+                    <th className="w-16 px-3 py-3 font-medium"></th>
                     <th className="px-4 py-3 font-medium">Skin</th>
                     <th className="px-4 py-3 font-medium">Rarity</th>
                     <th className="px-4 py-3 font-medium"></th>

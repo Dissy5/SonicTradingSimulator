@@ -3,6 +3,7 @@ import Image from "next/image";
 type SkinImageProps = {
   src?: string | null;
   alt: string;
+  title?: string;
   variant?: "thumbnail" | "preview" | "grid" | "values";
 };
 
@@ -24,12 +25,17 @@ function NoImagePlaceholder({ variant }: { variant: SkinImageProps["variant"] })
   }
 
   if (variant === "values") {
-    return <div className="h-full w-full bg-zinc-900" aria-hidden="true" />;
+    return (
+      <div
+        className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-zinc-800/80 bg-zinc-950/80"
+        aria-hidden="true"
+      />
+    );
   }
 
   return (
     <div
-      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-dashed border-zinc-700 bg-zinc-900 text-center text-[8px] leading-tight text-zinc-500"
+      className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-md border border-dashed border-zinc-700 bg-zinc-900 text-center text-[9px] leading-tight text-zinc-500"
       title="No Image"
     >
       No Image
@@ -37,7 +43,7 @@ function NoImagePlaceholder({ variant }: { variant: SkinImageProps["variant"] })
   );
 }
 
-export function SkinImage({ src, alt, variant = "thumbnail" }: SkinImageProps) {
+export function SkinImage({ src, alt, title, variant = "thumbnail" }: SkinImageProps) {
   if (!src?.trim()) {
     return <NoImagePlaceholder variant={variant} />;
   }
@@ -75,13 +81,16 @@ export function SkinImage({ src, alt, variant = "thumbnail" }: SkinImageProps) {
 
   if (variant === "values") {
     return (
-      <div className="relative h-full w-full">
+      <div
+        className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-zinc-800/80 bg-zinc-950/80"
+        title={title}
+      >
         <Image
           src={src}
           alt={alt}
           fill
-          className="object-contain p-0.5"
-          sizes="48px"
+          className="object-contain"
+          sizes="64px"
           unoptimized
         />
       </div>
@@ -89,13 +98,13 @@ export function SkinImage({ src, alt, variant = "thumbnail" }: SkinImageProps) {
   }
 
   return (
-    <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-black">
+    <div className="relative h-[50px] w-[50px] shrink-0 overflow-hidden rounded-md bg-black">
       <Image
         src={src}
         alt={alt}
         fill
         className="object-contain"
-        sizes="40px"
+        sizes="50px"
         unoptimized
       />
     </div>

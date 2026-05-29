@@ -12,6 +12,7 @@ export type UserProfile = {
   is_admin: boolean;
   display_name: string | null;
   theme: string | null;
+  contributes_to_values: boolean;
   created_at: string;
 };
 

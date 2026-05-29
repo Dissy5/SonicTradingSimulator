@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { isAdminContext, requireAdminApi } from "@/lib/admin";
-import { getCatalogSkinById, skinEntryExists } from "@/lib/catalog-db";
+import { DUPLICATE_SKIN_ERROR, getCatalogSkinById, skinEntryExists } from "@/lib/catalog-db";
 import { editSkin, getCharacters, removeSkin } from "@/lib/catalog-server";
 import { SKIN_RARITIES } from "@/lib/rarities";
 
@@ -42,11 +42,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "Unknown character" }, { status: 400 });
   }
 
-  if (await skinEntryExists(character, name, rarity, id)) {
-    return NextResponse.json(
-      { error: "This character already has a skin with that name and rarity" },
-      { status: 409 }
-    );
+  if (await skinEntryExists(character, name, rarity, id, admin.supabase)) {
+    return NextResponse.json({ error: DUPLICATE_SKIN_ERROR }, { status: 409 });
   }
 
   let imageFile: File | undefined;
@@ -65,6 +62,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ ok: true, skin });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to update skin";
+    if (message === DUPLICATE_SKIN_ERROR) {
+      return NextResponse.json({ error: message }, { status: 409 });
+    }
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

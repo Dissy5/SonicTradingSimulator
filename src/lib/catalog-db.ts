@@ -5,6 +5,49 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SkinCatalog } from "@/lib/types";
 
 const jsonCatalog = characterSkins as unknown as SkinCatalog;
+const SKIN_IMAGES_BUCKET = "skin-images";
+
+export function parseSkinImageStoragePath(imagePath: string): string | null {
+  if (!imagePath.startsWith("http://") && !imagePath.startsWith("https://")) {
+    return null;
+  }
+
+  try {
+    const url = new URL(imagePath);
+    const marker = `/storage/v1/object/public/${SKIN_IMAGES_BUCKET}/`;
+    const markerIndex = url.pathname.indexOf(marker);
+    if (markerIndex === -1) return null;
+
+    const storagePath = decodeURIComponent(url.pathname.slice(markerIndex + marker.length));
+    return storagePath || null;
+  } catch {
+    return null;
+  }
+}
+
+async function deleteSkinImagesFromStorage(
+  imagePaths: string[],
+  client?: SupabaseClient
+): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+
+  const storagePaths = [
+    ...new Set(
+      imagePaths
+        .map(parseSkinImageStoragePath)
+        .filter((path): path is string => Boolean(path))
+    ),
+  ];
+
+  if (storagePaths.length === 0) return;
+
+  const supabase = client ?? createSupabaseServerClient();
+  const { error } = await supabase.storage.from(SKIN_IMAGES_BUCKET).remove(storagePaths);
+
+  if (error) {
+    console.warn("Failed to delete skin image(s) from storage:", error.message);
+  }
+}
 
 export type CatalogCharacterRow = {
   id: number;
@@ -239,7 +282,7 @@ export async function uploadSkinImage(
   const buffer = Buffer.from(await input.imageFile.arrayBuffer());
 
   const { error: uploadError } = await supabase.storage
-    .from("skin-images")
+    .from(SKIN_IMAGES_BUCKET)
     .upload(filePath, buffer, {
       contentType: input.imageFile.type || "image/png",
       upsert: false,
@@ -247,7 +290,7 @@ export async function uploadSkinImage(
 
   if (uploadError) throw new Error(uploadError.message);
 
-  const { data } = supabase.storage.from("skin-images").getPublicUrl(filePath);
+  const { data } = supabase.storage.from(SKIN_IMAGES_BUCKET).getPublicUrl(filePath);
   return data.publicUrl;
 }
 
@@ -261,19 +304,31 @@ export async function addCatalogSkin(
   client?: SupabaseClient
 ): Promise<CatalogSkinRow> {
   const supabase = client ?? createSupabaseServerClient();
+  const character = input.character.trim();
+  const name = input.name.trim();
+  const rarity = input.rarity.trim();
+
+  if (await skinEntryExists(character, name, rarity, undefined, supabase)) {
+    throw new Error(DUPLICATE_SKIN_ERROR);
+  }
 
   const { data, error } = await supabase
     .from("catalog_skins")
     .insert({
-      character: input.character,
-      name: input.name,
-      rarity: input.rarity,
+      character,
+      name,
+      rarity,
       image_path: input.imagePath,
     })
     .select("*")
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (isUniqueViolation(error)) {
+      throw new Error(DUPLICATE_SKIN_ERROR);
+    }
+    throw new Error(error.message);
+  }
   return data as CatalogSkinRow;
 }
 
@@ -354,6 +409,18 @@ export async function deleteCatalogCharacter(
 
   const characterName = (existing as { name: string }).name;
 
+  const { data: skins, error: skinsReadError } = await supabase
+    .from("catalog_skins")
+    .select("image_path")
+    .eq("character", characterName);
+
+  if (skinsReadError) throw new Error(skinsReadError.message);
+
+  await deleteSkinImagesFromStorage(
+    (skins ?? []).map((row) => row.image_path as string),
+    supabase
+  );
+
   const { error: skinError } = await supabase
     .from("catalog_skins")
     .delete()
@@ -382,6 +449,21 @@ export async function updateCatalogSkin(
   client?: SupabaseClient
 ): Promise<CatalogSkinRow> {
   const supabase = client ?? createSupabaseServerClient();
+  const character = input.character.trim();
+  const name = input.name.trim();
+  const rarity = input.rarity.trim();
+
+  if (await skinEntryExists(character, name, rarity, id, supabase)) {
+    throw new Error(DUPLICATE_SKIN_ERROR);
+  }
+
+  const { data: existing, error: existingError } = await supabase
+    .from("catalog_skins")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (existingError) throw new Error(existingError.message);
 
   const payload: {
     character: string;
@@ -389,9 +471,9 @@ export async function updateCatalogSkin(
     rarity: string;
     image_path?: string;
   } = {
-    character: input.character,
-    name: input.name,
-    rarity: input.rarity,
+    character,
+    name,
+    rarity,
   };
 
   if (input.imagePath) {
@@ -405,7 +487,17 @@ export async function updateCatalogSkin(
     .select("*")
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (isUniqueViolation(error)) {
+      throw new Error(DUPLICATE_SKIN_ERROR);
+    }
+    throw new Error(error.message);
+  }
+
+  if (input.imagePath && input.imagePath !== (existing as CatalogSkinRow).image_path) {
+    await deleteSkinImagesFromStorage([(existing as CatalogSkinRow).image_path], supabase);
+  }
+
   return data as CatalogSkinRow;
 }
 
@@ -414,6 +506,17 @@ export async function deleteCatalogSkin(
   client?: SupabaseClient
 ): Promise<boolean> {
   const supabase = client ?? createSupabaseServerClient();
+
+  const { data: existing, error: existingError } = await supabase
+    .from("catalog_skins")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (existingError) throw new Error(existingError.message);
+  if (!existing) return false;
+
+  await deleteSkinImagesFromStorage([(existing as CatalogSkinRow).image_path], supabase);
 
   const { data, error } = await supabase.from("catalog_skins").delete().eq("id", id).select("id");
 
@@ -438,9 +541,10 @@ export async function skinEntryExists(
   character: string,
   name: string,
   rarity: string,
-  excludeId?: number
+  excludeId?: number,
+  client?: SupabaseClient
 ): Promise<boolean> {
-  const supabase = createSupabaseServerClient();
+  const supabase = client ?? createSupabaseServerClient();
 
   let query = supabase
     .from("catalog_skins")
@@ -456,4 +560,11 @@ export async function skinEntryExists(
   const { data, error } = await query;
   if (error) throw new Error(error.message);
   return (data?.length ?? 0) > 0;
+}
+
+export const DUPLICATE_SKIN_ERROR =
+  "This character already has a skin with that name and rarity";
+
+function isUniqueViolation(error: { code?: string }): boolean {
+  return error.code === "23505";
 }

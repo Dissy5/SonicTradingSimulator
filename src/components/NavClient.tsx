@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { SETTINGS_UPDATED_EVENT } from "@/lib/settings-events";
+import { AdminMenu } from "@/components/AdminMenu";
 
 export type NavUser = {
   id: string;
@@ -33,6 +34,7 @@ export function NavClient({ initialUser, initialAdmin }: NavClientProps) {
   const [user, setUser] = useState(initialUser);
   const [admin, setAdmin] = useState(initialAdmin);
   const [signingOut, setSigningOut] = useState(false);
+  const [adminMenuOpen, setAdminMenuOpen] = useState(false);
 
   useEffect(() => {
     setUser(initialUser);
@@ -90,9 +92,13 @@ export function NavClient({ initialUser, initialAdmin }: NavClientProps) {
 
   const links = [
     { href: "/", label: "Dashboard" },
-    { href: "/record", label: "Record" },
-    { href: "/shop", label: "Shop" },
-    { href: "/flips", label: "Flips" },
+    ...(user
+      ? [
+          { href: "/record", label: "Record" },
+          { href: "/shop", label: "Shop" },
+          { href: "/flips", label: "Flips" },
+        ]
+      : []),
     { href: "/transactions", label: "Transactions" },
     { href: "/values", label: "Values" },
     ...(admin ? [{ href: "/add", label: "Catalog" }] : []),
@@ -100,6 +106,13 @@ export function NavClient({ initialUser, initialAdmin }: NavClientProps) {
 
   return (
     <>
+      {admin && user ? (
+        <AdminMenu
+          open={adminMenuOpen}
+          currentUserId={user.id}
+          onClose={() => setAdminMenuOpen(false)}
+        />
+      ) : null}
       <nav className="flex flex-wrap gap-2">
         {links.map((link) => (
           <Link
@@ -129,8 +142,16 @@ export function NavClient({ initialUser, initialAdmin }: NavClientProps) {
               className="max-w-40 truncate text-sm text-zinc-400 hover:text-zinc-200"
             >
               {user.name}
-              {admin ? " · Admin" : ""}
             </Link>
+            {admin ? (
+              <button
+                type="button"
+                onClick={() => setAdminMenuOpen(true)}
+                className="rounded-lg border border-amber-700/60 px-3 py-1.5 text-sm text-amber-200 hover:bg-amber-950/40"
+              >
+                Admin
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={signOut}

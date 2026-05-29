@@ -1,8 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-import { isAllowedSignInUser } from "@/lib/auth-allowlist";
-
 export async function createSupabaseAuthServerClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -39,11 +37,6 @@ export async function getAuthUser() {
   const supabase = await createSupabaseAuthServerClient();
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return null;
-
-  if (!isAllowedSignInUser(data.user)) {
-    await supabase.auth.signOut();
-    return null;
-  }
 
   return data.user;
 }

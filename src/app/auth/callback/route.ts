@@ -1,9 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { isAllowedSignInUser } from "@/lib/auth-allowlist";
 import { mapOAuthErrorToLoginError } from "@/lib/login-errors";
-import { deleteAuthUser } from "@/lib/supabase/admin-auth";
 
 function loginRedirect(
   origin: string,
@@ -70,24 +68,6 @@ export async function GET(request: NextRequest) {
       error.message
     );
     return NextResponse.redirect(loginRedirect(origin, mapped));
-  }
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!isAllowedSignInUser(user)) {
-    await supabase.auth.signOut();
-    if (user?.id) {
-      await deleteAuthUser(user.id);
-    }
-    const deniedResponse = NextResponse.redirect(
-      loginRedirect(origin, "restricted", user?.email)
-    );
-    for (const cookie of response.cookies.getAll()) {
-      deniedResponse.cookies.set(cookie);
-    }
-    return deniedResponse;
   }
 
   return response;

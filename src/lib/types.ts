@@ -8,9 +8,12 @@ export type Transaction = {
   rarity: string;
   star: number;
   price: number;
+  date: string;
   createdAt: string;
   createdBy: string | null;
   recordedBy: string | null;
+  /** Admin-only placeholder sales for the values sheet; hidden from transaction history. */
+  manualValueOnly?: boolean;
 };
 
 /** @deprecated Use Transaction */

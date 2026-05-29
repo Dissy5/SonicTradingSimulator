@@ -10,6 +10,8 @@ create table if not exists public.sales (
   type text not null default 'sale' check (type in ('sale', 'purchase')),
   created_by uuid references public.profiles(id),
   recorded_by_email text,
+  manual_value_only boolean not null default false,
+  transaction_date date not null default current_date,
   created_at timestamptz not null default now()
 );
 
@@ -125,6 +127,7 @@ create table if not exists public.profiles (
   is_admin boolean not null default false,
   display_name text,
   theme text not null default 'dark' check (theme in ('dark', 'light')),
+  contributes_to_values boolean not null default false,
   created_at timestamptz not null default now()
 );
 
@@ -164,7 +167,8 @@ create policy "flips_update_own"
 alter table public.profiles
   add column if not exists display_name text,
   add column if not exists theme text not null default 'dark'
-    check (theme in ('dark', 'light'));
+    check (theme in ('dark', 'light')),
+  add column if not exists contributes_to_values boolean not null default false;
 
 create policy "flips_delete_own"
   on public.flips for delete
@@ -178,3 +182,9 @@ alter table public.flips
 alter table public.sales
   add column if not exists type text not null default 'sale'
   check (type in ('sale', 'purchase'));
+
+alter table public.sales
+  add column if not exists transaction_date date not null default current_date;
+
+alter table public.sales
+  add column if not exists manual_value_only boolean not null default false;

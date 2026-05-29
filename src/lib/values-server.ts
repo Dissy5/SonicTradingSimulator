@@ -1,8 +1,9 @@
 import { getSkinImagePath } from "@/lib/catalog";
 import type { Transaction, SkinCatalog } from "@/lib/types";
 import { tierIndexForAverage, VALUE_TIER_DEFINITIONS } from "@/lib/values-tiers";
+import { weightedAveragePrice } from "@/lib/values-weighting";
 
-import { listTransactions } from "./store";
+import { listTransactionsForValues } from "./store";
 
 export type ValuedSkin = {
   character: string;
@@ -24,20 +25,22 @@ function skinKey(character: string, skin: string, rarity: string): string {
 }
 
 export function buildAveragePricesBySkinFromSales(transactions: Transaction[]): Map<string, number> {
-  const groups = new Map<string, number[]>();
+  const groups = new Map<string, { price: number; date: string }[]>();
 
   for (const transaction of transactions) {
     if (transaction.type !== "sale") continue;
     const key = skinKey(transaction.character, transaction.skin, transaction.rarity);
     const prices = groups.get(key) ?? [];
-    prices.push(transaction.price);
+    prices.push({ price: transaction.price, date: transaction.date });
     groups.set(key, prices);
   }
 
   const averages = new Map<string, number>();
-  for (const [key, prices] of groups) {
-    const total = prices.reduce((sum, price) => sum + price, 0);
-    averages.set(key, Math.round(total / prices.length));
+  for (const [key, entries] of groups) {
+    const average = weightedAveragePrice(entries);
+    if (average != null) {
+      averages.set(key, average);
+    }
   }
 
   return averages;
@@ -71,10 +74,7 @@ export async function buildValuesTierRows(
   catalog: SkinCatalog,
   options?: { userId?: string | null }
 ): Promise<ValuesTierRow[]> {
-  let transactions = await listTransactions();
-  if (options?.userId) {
-    transactions = transactions.filter((entry) => entry.createdBy === options.userId);
-  }
+  let transactions = await listTransactionsForValues(options);
 
   const averages = buildAveragePricesBySkinFromSales(transactions);
   const catalogSkins = listCatalogSkins(catalog).map((entry) => ({
@@ -96,5 +96,5 @@ export async function buildValuesTierRows(
     bucket.skins.sort((a, b) => (b.averagePrice ?? 0) - (a.averagePrice ?? 0));
   }
 
-  return buckets;
+  return buckets.filter((bucket) => bucket.skins.length > 0);
 }

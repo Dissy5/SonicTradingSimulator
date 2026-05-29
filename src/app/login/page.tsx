@@ -40,8 +40,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           Sign in with Google to record transactions. The transaction log is available without an account.
         </p>
         <p className="mt-2 text-xs text-zinc-500">
-          Sign-in is invite-only. If the Google account you pick isn&apos;t authorized, you&apos;ll
-          be brought back here with details.
+          Access is controlled by Google sign-in. If your account isn&apos;t on the app&apos;s test
+          user list yet, Google will block sign-in before you return here.
         </p>
       </div>
 

@@ -16,6 +16,7 @@ export type DashboardRecentTransaction = {
   rarity: string;
   star: number;
   price: number;
+  date: string;
   createdAt: string;
 };
 
@@ -105,6 +106,7 @@ export async function loadDashboardOverview(
         rarity: entry.rarity,
         star: entry.star,
         price: entry.price,
+        date: entry.date,
         createdAt: entry.createdAt,
       })),
     },

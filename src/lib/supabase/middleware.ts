@@ -1,8 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { isAllowedSignInUser } from "@/lib/auth-allowlist";
-
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -34,13 +32,7 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (user && !isAllowedSignInUser(user)) {
-    await supabase.auth.signOut();
-  }
+  await supabase.auth.getUser();
 
   return supabaseResponse;
 }

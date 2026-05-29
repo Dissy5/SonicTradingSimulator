@@ -48,9 +48,11 @@ export type SaleRow = {
   rarity: string;
   star: number;
   price: number;
+  transaction_date: string;
   created_at: string;
   created_by: string | null;
   recorded_by_email: string | null;
+  manual_value_only: boolean;
 };
 
 export type FlipRow = {

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { isAdminContext, requireAdminApi } from "@/lib/admin";
-import { createSkin, exists, getCharacters } from "@/lib/catalog-server";
+import { DUPLICATE_SKIN_ERROR, skinEntryExists } from "@/lib/catalog-db";
+import { createSkin, getCharacters } from "@/lib/catalog-server";
 import { SKIN_RARITIES } from "@/lib/rarities";
 
 export async function GET() {
@@ -36,11 +37,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unknown character" }, { status: 400 });
   }
 
-  if (await exists(character, name, rarity)) {
-    return NextResponse.json(
-      { error: "This character already has a skin with that name and rarity" },
-      { status: 409 }
-    );
+  if (await skinEntryExists(character, name, rarity, undefined, admin.supabase)) {
+    return NextResponse.json({ error: DUPLICATE_SKIN_ERROR }, { status: 409 });
   }
 
   if (hasImage) {
@@ -66,6 +64,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, skin }, { status: 201 });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to add skin";
+    if (message === DUPLICATE_SKIN_ERROR) {
+      return NextResponse.json({ error: message }, { status: 409 });
+    }
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

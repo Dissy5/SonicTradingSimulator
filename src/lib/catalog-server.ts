@@ -10,9 +10,11 @@ import {
   listCatalogCharacters,
   listCatalogSkinRows,
   loadCatalogFromDatabase,
+  skinEntryExists,
   updateCatalogCharacter,
   updateCatalogSkin,
   uploadSkinImage,
+  DUPLICATE_SKIN_ERROR,
 } from "@/lib/catalog-db";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -136,12 +138,20 @@ export async function createSkin(
   },
   client?: SupabaseClient
 ): Promise<CatalogSkinRow> {
+  const character = input.character.trim();
+  const name = input.name.trim();
+  const rarity = input.rarity.trim();
+
+  if (await skinEntryExists(character, name, rarity, undefined, client)) {
+    throw new Error(DUPLICATE_SKIN_ERROR);
+  }
+
   const imagePath = input.imageFile
     ? await uploadSkinImage(
         {
-          character: input.character,
-          name: input.name,
-          rarity: input.rarity,
+          character,
+          name,
+          rarity,
           imageFile: input.imageFile,
         },
         client
@@ -150,9 +160,9 @@ export async function createSkin(
 
   return addCatalogSkin(
     {
-      character: input.character,
-      name: input.name.trim(),
-      rarity: input.rarity,
+      character,
+      name,
+      rarity,
       imagePath,
     },
     client
@@ -169,12 +179,20 @@ export async function editSkin(
   },
   client?: SupabaseClient
 ): Promise<CatalogSkinRow> {
+  const character = input.character.trim();
+  const name = input.name.trim();
+  const rarity = input.rarity.trim();
+
+  if (await skinEntryExists(character, name, rarity, id, client)) {
+    throw new Error(DUPLICATE_SKIN_ERROR);
+  }
+
   const imagePath = input.imageFile
     ? await uploadSkinImage(
         {
-          character: input.character,
-          name: input.name,
-          rarity: input.rarity,
+          character,
+          name,
+          rarity,
           imageFile: input.imageFile,
         },
         client
@@ -184,9 +202,9 @@ export async function editSkin(
   return updateCatalogSkin(
     id,
     {
-      character: input.character,
-      name: input.name.trim(),
-      rarity: input.rarity,
+      character,
+      name,
+      rarity,
       imagePath,
     },
     client
