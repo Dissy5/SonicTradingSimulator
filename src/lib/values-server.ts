@@ -28,7 +28,6 @@ export function buildAveragePricesBySkinFromSales(transactions: Transaction[]): 
   const groups = new Map<string, { price: number; date: string }[]>();
 
   for (const transaction of transactions) {
-    if (transaction.type !== "sale") continue;
     const key = skinKey(transaction.character, transaction.skin, transaction.rarity);
     const prices = groups.get(key) ?? [];
     prices.push({ price: transaction.price, date: transaction.date });

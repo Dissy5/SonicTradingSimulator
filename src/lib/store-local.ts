@@ -62,16 +62,16 @@ export async function listTransactions(): Promise<Transaction[]> {
 export async function listTransactionsForValues(options?: {
   userId?: string | null;
 }): Promise<Transaction[]> {
-  const sales = (await readTransactions()).filter((entry) => entry.type === "sale");
+  const transactions = await readTransactions();
 
   if (options?.userId) {
-    return sales.filter(
+    return transactions.filter(
       (entry) => entry.createdBy === options.userId && entry.manualValueOnly !== true
     );
   }
 
   const includedUserIds = await getValuesIncludedUserIds();
-  return sales.filter((entry) => {
+  return transactions.filter((entry) => {
     if (entry.manualValueOnly) return true;
     return entry.createdBy != null && includedUserIds.has(entry.createdBy);
   });

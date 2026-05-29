@@ -305,7 +305,7 @@ function UnassignedSkinWizard({ onValuesChanged }: { onValuesChanged: () => void
         <div>
           <h2 className="text-lg font-semibold">Skins without values</h2>
           <p className="mt-1 text-sm text-zinc-400">
-            Assign a manual value to catalog skins that have no sale history yet.
+            Assign a manual value to catalog skins that have no transaction history yet.
           </p>
         </div>
         {!loading && skins.length > 0 ? (

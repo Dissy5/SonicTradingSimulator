@@ -12,7 +12,6 @@ function skinsWithSaleHistory(
 ): Set<string> {
   const keys = new Set<string>();
   for (const transaction of transactions) {
-    if (transaction.type !== "sale") continue;
     keys.add(skinKey(transaction.character, transaction.skin, transaction.rarity));
   }
   return keys;

@@ -166,7 +166,7 @@ export function ValuesHub() {
 
       {view === "all" && !loading && !error ? (
         <p className="text-sm text-zinc-400">
-          Prices are estimates based on sale transactions recorded in the app, averaged by skin and
+          Prices are estimates based on sale and purchase transactions recorded in the app, averaged by skin and
           tier with more weight on recent sales. They reflect community data, not official in-game
           values.
         </p>

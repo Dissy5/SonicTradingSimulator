@@ -55,7 +55,7 @@ export async function listTransactionsForValues(options?: {
   const { data, error } = await supabase.from("sales").select("*").order("id", { ascending: false });
 
   if (error) throw new Error(error.message);
-  let transactions = (data as SaleRow[]).map(rowToTransaction).filter((entry) => entry.type === "sale");
+  let transactions = (data as SaleRow[]).map(rowToTransaction);
 
   if (options?.userId) {
     return transactions.filter(
