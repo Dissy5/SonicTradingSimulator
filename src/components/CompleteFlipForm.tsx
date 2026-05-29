@@ -150,7 +150,7 @@ export function CompleteFlipForm({ flip, catalog }: CompleteFlipFormProps) {
               <h2 className="mb-4 text-lg font-semibold">Record sale</h2>
               <p className="mb-4 text-sm text-zinc-400">
                 Enter the price you sold this skin for to close out the flip. This will also
-                add an entry to the sales log.
+                add a sale to the transaction log.
               </p>
               <label className="block text-sm text-zinc-400">
                 Sale price

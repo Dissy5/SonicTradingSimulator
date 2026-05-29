@@ -51,7 +51,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
     const flip = await completeFlipAndLogSale(id, sellPrice, {
       userId: auth.user.id,
-      recordedBy: getUserDisplayName(auth.user),
+      recordedBy: await getUserDisplayName(auth.user, auth.supabase),
       supabase: auth.supabase,
     });
     return NextResponse.json(flip);
@@ -73,7 +73,7 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
   try {
     const removed = await deleteFlip(id, {
       userId: auth.user.id,
-      recordedBy: getUserDisplayName(auth.user),
+      recordedBy: await getUserDisplayName(auth.user, auth.supabase),
       supabase: auth.supabase,
     });
     if (!removed) {

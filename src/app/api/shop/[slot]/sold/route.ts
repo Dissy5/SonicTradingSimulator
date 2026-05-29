@@ -29,7 +29,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       slot,
       {
         userId: auth.user.id,
-        recordedBy: getUserDisplayName(auth.user),
+        recordedBy: await getUserDisplayName(auth.user, auth.supabase),
         supabase: auth.supabase,
       },
       salePrice

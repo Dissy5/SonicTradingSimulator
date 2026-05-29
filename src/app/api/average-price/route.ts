@@ -20,6 +20,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "star must be between 1 and 6" }, { status: 400 });
   }
 
-  const average = await getAveragePrice(characterName, skinName, rarity, star);
+  const typeParam = request.nextUrl.searchParams.get("type");
+  const type = typeParam === "purchase" ? "purchase" : "sale";
+
+  const average = await getAveragePrice(characterName, skinName, rarity, star, type);
   return NextResponse.json({ average });
 }

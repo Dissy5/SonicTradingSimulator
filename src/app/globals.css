@@ -1,8 +1,32 @@
 @import "tailwindcss";
 
-:root {
+:root,
+html[data-theme="dark"] {
+  color-scheme: dark;
   --background: #09090b;
   --foreground: #fafafa;
+  --surface: rgb(9 9 11 / 0.8);
+  --surface-elevated: rgb(39 39 42 / 0.6);
+  --border: #27272a;
+  --border-strong: #3f3f46;
+  --input-bg: #09090b;
+  --muted: #a1a1aa;
+  --muted-strong: #71717a;
+  --hover: rgb(24 24 27);
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+  --background: #fafafa;
+  --foreground: #18181b;
+  --surface: rgb(255 255 255 / 0.92);
+  --surface-elevated: #ffffff;
+  --border: #e4e4e7;
+  --border-strong: #d4d4d8;
+  --input-bg: #ffffff;
+  --muted: #71717a;
+  --muted-strong: #52525b;
+  --hover: #f4f4f5;
 }
 
 @theme inline {
@@ -12,13 +36,94 @@
   --font-mono: var(--font-geist-mono);
 }
 
-body {
+body,
+.app-body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
+.app-header {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
 select option {
-  background: #18181b;
-  color: #fafafa;
+  background: var(--input-bg);
+  color: var(--foreground);
+}
+
+html[data-theme="light"] .text-zinc-100,
+html[data-theme="light"] .text-zinc-200 {
+  color: #18181b;
+}
+
+html[data-theme="light"] .text-zinc-300 {
+  color: #27272a;
+}
+
+html[data-theme="light"] .text-zinc-400 {
+  color: #52525b;
+}
+
+html[data-theme="light"] .text-zinc-500 {
+  color: #71717a;
+}
+
+html[data-theme="light"] .border-zinc-800,
+html[data-theme="light"] .border-zinc-700 {
+  border-color: var(--border);
+}
+
+html[data-theme="light"] .bg-zinc-950,
+html[data-theme="light"] .bg-zinc-950\/80,
+html[data-theme="light"] .bg-zinc-950\/40 {
+  background-color: var(--background);
+}
+
+html[data-theme="light"] .bg-zinc-900,
+html[data-theme="light"] .bg-zinc-900\/60,
+html[data-theme="light"] .bg-zinc-900\/80 {
+  background-color: var(--surface-elevated);
+}
+
+html[data-theme="light"] .hover\:bg-zinc-900:hover,
+html[data-theme="light"] .hover\:bg-zinc-800:hover,
+html[data-theme="light"] .hover\:bg-zinc-800\/40:hover {
+  background-color: var(--hover);
+}
+
+html[data-theme="light"] .group-hover\:text-zinc-100.group:hover,
+html[data-theme="light"] .group:hover .group-hover\:text-zinc-100 {
+  color: #09090b;
+}
+
+html[data-theme="light"] .group-hover\:text-zinc-300.group:hover,
+html[data-theme="light"] .group:hover .group-hover\:text-zinc-300 {
+  color: #27272a;
+}
+
+html[data-theme="light"] input,
+html[data-theme="light"] select,
+html[data-theme="light"] textarea {
+  background-color: var(--input-bg);
+  color: var(--foreground);
+  border-color: var(--border-strong);
+}
+
+html[data-theme="light"] .border-dashed.border-zinc-800,
+html[data-theme="light"] .border-dashed.border-zinc-700 {
+  border-color: var(--border-strong);
+}
+
+html[data-theme="light"] thead.bg-zinc-900 {
+  background-color: #f4f4f5;
+}
+
+html[data-theme="light"] tbody tr.border-t.border-zinc-800 {
+  border-color: var(--border);
+}
+
+html[data-theme="light"] .bg-gradient-to-t.from-black\/90 {
+  background-image: linear-gradient(to top, rgb(0 0 0 / 0.72), transparent);
 }

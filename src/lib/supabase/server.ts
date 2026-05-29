@@ -42,6 +42,7 @@ export function createSupabaseServerClient(): SupabaseClient {
 
 export type SaleRow = {
   id: number;
+  type: string;
   character: string;
   skin: string;
   rarity: string;

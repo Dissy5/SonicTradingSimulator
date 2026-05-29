@@ -10,6 +10,8 @@ export type UserProfile = {
   id: string;
   email: string | null;
   is_admin: boolean;
+  display_name: string | null;
+  theme: string | null;
   created_at: string;
 };
 

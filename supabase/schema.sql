@@ -7,6 +7,7 @@ create table if not exists public.sales (
   rarity text not null,
   star integer not null check (star between 1 and 6),
   price integer not null check (price >= 0),
+  type text not null default 'sale' check (type in ('sale', 'purchase')),
   created_by uuid references public.profiles(id),
   recorded_by_email text,
   created_at timestamptz not null default now()
@@ -122,6 +123,8 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text,
   is_admin boolean not null default false,
+  display_name text,
+  theme text not null default 'dark' check (theme in ('dark', 'light')),
   created_at timestamptz not null default now()
 );
 
@@ -134,7 +137,44 @@ create policy "profiles_select_own"
 -- Promote admins manually, e.g.:
 -- update public.profiles set is_admin = true where email = 'you@example.com';
 
+create policy "profiles_update_own"
+  on public.profiles for update
+  to authenticated
+  using (auth.uid() = id)
+  with check (auth.uid() = id);
+
+create policy "profiles_insert_own"
+  on public.profiles for insert
+  to authenticated
+  with check (auth.uid() = id);
+
+create policy "sales_update_own"
+  on public.sales for update
+  to authenticated
+  using (auth.uid() = created_by)
+  with check (auth.uid() = created_by);
+
+create policy "flips_update_own"
+  on public.flips for update
+  to authenticated
+  using (auth.uid() = created_by)
+  with check (auth.uid() = created_by);
+
 -- Migrations for existing projects
+alter table public.profiles
+  add column if not exists display_name text,
+  add column if not exists theme text not null default 'dark'
+    check (theme in ('dark', 'light'));
+
+create policy "flips_delete_own"
+  on public.flips for delete
+  to authenticated
+  using (auth.uid() = created_by);
+
 alter table public.flips
   add column if not exists planned_sell_price integer
   check (planned_sell_price is null or planned_sell_price >= 0);
+
+alter table public.sales
+  add column if not exists type text not null default 'sale'
+  check (type in ('sale', 'purchase'));

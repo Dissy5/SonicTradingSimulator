@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { SalesTable } from "@/components/SalesTable";
-import type { Sale, SkinCatalog } from "@/lib/types";
+import { TransactionsTable } from "@/components/TransactionsTable";
+import { SETTINGS_UPDATED_EVENT } from "@/lib/settings-events";
+import type { SkinCatalog, Transaction } from "@/lib/types";
 
-type SalesLogProps = {
+type TransactionsLogProps = {
   catalog: SkinCatalog;
 };
 
@@ -14,25 +15,25 @@ type SessionInfo = {
   isAdmin: boolean;
 };
 
-type SalesFilter = "mine" | "all";
+type TransactionsFilter = "mine" | "all";
 
-export function SalesLog({ catalog }: SalesLogProps) {
-  const [sales, setSales] = useState<Sale[]>([]);
+export function TransactionsLog({ catalog }: TransactionsLogProps) {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [session, setSession] = useState<SessionInfo>({ userId: null, isAdmin: false });
-  const [filter, setFilter] = useState<SalesFilter>("all");
+  const [filter, setFilter] = useState<TransactionsFilter>("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadSales = useCallback(async () => {
+  const loadTransactions = useCallback(async () => {
     setLoading(true);
     try {
-      const [salesRes, meRes] = await Promise.all([
-        fetch("/api/sales"),
+      const [transactionsRes, meRes] = await Promise.all([
+        fetch("/api/transactions"),
         fetch("/api/me", { credentials: "same-origin" }),
       ]);
 
-      if (!salesRes.ok) throw new Error("Failed to load sales");
-      setSales(await salesRes.json());
+      if (!transactionsRes.ok) throw new Error("Failed to load transactions");
+      setTransactions(await transactionsRes.json());
 
       if (meRes.ok) {
         const me = (await meRes.json()) as {
@@ -52,58 +53,68 @@ export function SalesLog({ catalog }: SalesLogProps) {
 
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load sales");
+      setError(err instanceof Error ? err.message : "Failed to load transactions");
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadSales();
-  }, [loadSales]);
+    loadTransactions();
+  }, [loadTransactions]);
 
-  const mySalesCount = useMemo(() => {
-    if (!session.userId) return 0;
-    return sales.filter((sale) => sale.createdBy === session.userId).length;
-  }, [sales, session.userId]);
-
-  const visibleSales = useMemo(() => {
-    if (filter === "mine" && session.userId) {
-      return sales.filter((sale) => sale.createdBy === session.userId);
+  useEffect(() => {
+    function onSettingsUpdated() {
+      void loadTransactions();
     }
-    return sales;
-  }, [filter, sales, session.userId]);
 
-  async function deleteSale(id: number) {
-    const res = await fetch(`/api/sales/${id}`, {
+    window.addEventListener(SETTINGS_UPDATED_EVENT, onSettingsUpdated);
+    return () => window.removeEventListener(SETTINGS_UPDATED_EVENT, onSettingsUpdated);
+  }, [loadTransactions]);
+
+  const myCount = useMemo(() => {
+    if (!session.userId) return 0;
+    return transactions.filter((entry) => entry.createdBy === session.userId).length;
+  }, [transactions, session.userId]);
+
+  const visibleTransactions = useMemo(() => {
+    if (filter === "mine" && session.userId) {
+      return transactions.filter((entry) => entry.createdBy === session.userId);
+    }
+    return transactions;
+  }, [filter, transactions, session.userId]);
+
+  async function deleteTransaction(id: number) {
+    const res = await fetch(`/api/transactions/${id}`, {
       method: "DELETE",
       credentials: "same-origin",
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      const message = typeof body.error === "string" ? body.error : "Failed to delete sale";
+      const message =
+        typeof body.error === "string" ? body.error : "Failed to delete transaction";
       setError(message);
       throw new Error(message);
     }
-    await loadSales();
+    await loadTransactions();
   }
 
-  function canDeleteSale(sale: Sale): boolean {
+  function canDeleteTransaction(transaction: Transaction): boolean {
     if (!session.userId) return false;
     if (session.isAdmin) return true;
-    return sale.createdBy === session.userId;
+    return transaction.createdBy === session.userId;
   }
 
   if (loading) {
-    return <p className="text-sm text-zinc-400">Loading sales…</p>;
+    return <p className="text-sm text-zinc-400">Loading transactions…</p>;
   }
 
   if (error) {
     return <p className="text-sm text-red-400">{error}</p>;
   }
 
-  if (sales.length === 0) {
-    return <p className="text-sm text-zinc-400">No sales recorded yet.</p>;
+  if (transactions.length === 0) {
+    return <p className="text-sm text-zinc-400">No transactions recorded yet.</p>;
   }
 
   return (
@@ -113,28 +124,28 @@ export function SalesLog({ catalog }: SalesLogProps) {
           <FilterButton
             active={filter === "mine"}
             onClick={() => setFilter("mine")}
-            label={`My sales (${mySalesCount})`}
+            label={`Mine (${myCount})`}
           />
           <FilterButton
             active={filter === "all"}
             onClick={() => setFilter("all")}
-            label={`All sales (${sales.length})`}
+            label={`All (${transactions.length})`}
           />
         </div>
       )}
 
-      {visibleSales.length === 0 ? (
+      {visibleTransactions.length === 0 ? (
         <p className="text-sm text-zinc-400">
           {filter === "mine"
-            ? "You haven't recorded any sales yet."
-            : "No sales recorded yet."}
+            ? "You haven't recorded any transactions yet."
+            : "No transactions recorded yet."}
         </p>
       ) : (
-        <SalesTable
+        <TransactionsTable
           catalog={catalog}
-          sales={visibleSales}
-          onDelete={session.userId ? deleteSale : undefined}
-          canDelete={canDeleteSale}
+          transactions={visibleTransactions}
+          onDelete={session.userId ? deleteTransaction : undefined}
+          canDelete={canDeleteTransaction}
           showRecordedBy={filter === "all"}
         />
       )}

@@ -10,7 +10,7 @@ export async function POST() {
   try {
     const sold = await markAllShopListingsSold({
       userId: auth.user.id,
-      recordedBy: getUserDisplayName(auth.user),
+      recordedBy: await getUserDisplayName(auth.user, auth.supabase),
       supabase: auth.supabase,
     });
     return NextResponse.json({ ok: true, sold });

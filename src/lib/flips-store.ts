@@ -4,7 +4,7 @@ import { isSupabaseConfigured, type FlipRow } from "@/lib/supabase/server";
 import type { Flip } from "@/lib/types";
 
 import * as localFlips from "./flips-store-local";
-import { addSale } from "./store";
+import { addTransaction } from "./store";
 
 function rowToFlip(row: FlipRow): Flip {
   return {
@@ -137,8 +137,9 @@ export async function completeFlipAndLogSale(
   const completed = await completeFlip(id, sellPrice, context);
 
   try {
-    await addSale(
+    await addTransaction(
       {
+        type: "sale",
         character: completed.character,
         skin: completed.skin,
         rarity: completed.rarity,

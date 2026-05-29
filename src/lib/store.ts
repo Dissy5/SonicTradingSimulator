@@ -1,12 +1,13 @@
 import { createSupabaseServerClient, isSupabaseConfigured, type SaleRow } from "@/lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Sale } from "@/lib/types";
+import type { Transaction, TransactionType } from "@/lib/types";
 
 import * as localStore from "./store-local";
 
-function rowToSale(row: SaleRow): Sale {
+function rowToTransaction(row: SaleRow): Transaction {
   return {
     id: row.id,
+    type: row.type === "purchase" ? "purchase" : "sale",
     character: row.character,
     skin: row.skin,
     rarity: row.rarity,
@@ -18,9 +19,9 @@ function rowToSale(row: SaleRow): Sale {
   };
 }
 
-export async function listSales(): Promise<Sale[]> {
+export async function listTransactions(): Promise<Transaction[]> {
   if (!isSupabaseConfigured()) {
-    return localStore.listSales();
+    return localStore.listTransactions();
   }
 
   const supabase = createSupabaseServerClient();
@@ -30,10 +31,14 @@ export async function listSales(): Promise<Sale[]> {
     .order("id", { ascending: false });
 
   if (error) throw new Error(error.message);
-  return (data as SaleRow[]).map(rowToSale);
+  return (data as SaleRow[]).map(rowToTransaction);
 }
 
-export type AddSaleInput = {
+/** @deprecated Use listTransactions */
+export const listSales = listTransactions;
+
+export type AddTransactionInput = {
+  type: TransactionType;
   character: string;
   skin: string;
   rarity: string;
@@ -41,15 +46,18 @@ export type AddSaleInput = {
   price: number;
 };
 
-export type AddSaleContext = {
+export type AddTransactionContext = {
   userId: string;
   recordedBy: string;
   supabase?: SupabaseClient;
 };
 
-export async function addSale(input: AddSaleInput, context: AddSaleContext): Promise<Sale> {
+export async function addTransaction(
+  input: AddTransactionInput,
+  context: AddTransactionContext
+): Promise<Transaction> {
   if (!isSupabaseConfigured()) {
-    return localStore.addSale(input, context);
+    return localStore.addTransaction(input, context);
   }
 
   const supabase = context.supabase;
@@ -60,6 +68,7 @@ export async function addSale(input: AddSaleInput, context: AddSaleContext): Pro
   const { data, error } = await supabase
     .from("sales")
     .insert({
+      type: input.type,
       character: input.character,
       skin: input.skin,
       rarity: input.rarity,
@@ -72,12 +81,23 @@ export async function addSale(input: AddSaleInput, context: AddSaleContext): Pro
     .single();
 
   if (error) throw new Error(error.message);
-  return rowToSale(data as SaleRow);
+  return rowToTransaction(data as SaleRow);
 }
 
-export async function deleteSale(id: number, supabase?: SupabaseClient): Promise<boolean> {
+/** @deprecated Use addTransaction */
+export async function addSale(
+  input: Omit<AddTransactionInput, "type">,
+  context: AddTransactionContext
+): Promise<Transaction> {
+  return addTransaction({ ...input, type: "sale" }, context);
+}
+
+export async function deleteTransaction(
+  id: number,
+  supabase?: SupabaseClient
+): Promise<boolean> {
   if (!isSupabaseConfigured()) {
-    return localStore.deleteSale(id);
+    return localStore.deleteTransaction(id);
   }
 
   if (!supabase) {
@@ -90,20 +110,25 @@ export async function deleteSale(id: number, supabase?: SupabaseClient): Promise
   return (data?.length ?? 0) > 0;
 }
 
+/** @deprecated Use deleteTransaction */
+export const deleteSale = deleteTransaction;
+
 export async function getAveragePrice(
   character: string,
   skin: string,
   rarity: string,
-  star: number
+  star: number,
+  type: TransactionType = "sale"
 ): Promise<number | null> {
   if (!isSupabaseConfigured()) {
-    return localStore.getAveragePrice(character, skin, rarity, star);
+    return localStore.getAveragePrice(character, skin, rarity, star, type);
   }
 
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
     .from("sales")
     .select("price")
+    .eq("type", type)
     .eq("character", character)
     .eq("skin", skin)
     .eq("rarity", rarity)
@@ -116,13 +141,13 @@ export async function getAveragePrice(
   return Math.round(total / data.length);
 }
 
-export async function listRecentSalesByCharacterSkin(
+export async function listRecentTransactionsByCharacterSkin(
   character: string,
   skin: string,
   limit = 10
-): Promise<Sale[]> {
+): Promise<Transaction[]> {
   if (!isSupabaseConfigured()) {
-    return localStore.listRecentSalesByCharacterSkin(character, skin, limit);
+    return localStore.listRecentTransactionsByCharacterSkin(character, skin, limit);
   }
 
   const supabase = createSupabaseServerClient();
@@ -135,5 +160,8 @@ export async function listRecentSalesByCharacterSkin(
     .limit(limit);
 
   if (error) throw new Error(error.message);
-  return (data as SaleRow[]).map(rowToSale);
+  return (data as SaleRow[]).map(rowToTransaction);
 }
+
+/** @deprecated Use listRecentTransactionsByCharacterSkin */
+export const listRecentSalesByCharacterSkin = listRecentTransactionsByCharacterSkin;

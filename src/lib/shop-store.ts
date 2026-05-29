@@ -2,13 +2,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
   emptyShopBoard,
+  nextAvailableSlot,
   shopBoardFromListings,
   type ShopBoard,
   type ShopListing,
 } from "@/lib/shop";
 import { isSupabaseConfigured, type ShopListingRow } from "@/lib/supabase/server";
 
-import { addSale } from "./store";
+import { addTransaction } from "./store";
 import * as localShop from "./shop-store-local";
 
 function rowToListing(row: ShopListingRow): ShopListing {
@@ -41,6 +42,11 @@ export type ShopListingInput = {
 };
 
 export async function getShopBoard(client: SupabaseClient, userId: string): Promise<ShopBoard> {
+  await compactShopListings({
+    userId,
+    recordedBy: "",
+    supabase: client,
+  });
   const listings = await listShopListings(client, userId);
   return shopBoardFromListings(listings);
 }
@@ -61,6 +67,55 @@ export async function listShopListings(
 
   if (error) throw new Error(error.message);
   return (data as ShopListingRow[]).map(rowToListing);
+}
+
+export async function compactShopListings(context: ShopMutationContext): Promise<void> {
+  if (!isSupabaseConfigured()) {
+    await localShop.compactShopListings(context.userId);
+    return;
+  }
+
+  const listings = await listShopListings(context.supabase, context.userId);
+  listings.sort((a, b) => a.slotIndex - b.slotIndex);
+
+  if (!listings.some((listing, index) => listing.slotIndex !== index)) {
+    return;
+  }
+
+  const { error: deleteError } = await context.supabase
+    .from("shop_listings")
+    .delete()
+    .eq("created_by", context.userId);
+
+  if (deleteError) throw new Error(deleteError.message);
+  if (listings.length === 0) return;
+
+  const rows = listings.map((listing, index) => ({
+    slot_index: index,
+    character: listing.character,
+    skin: listing.skin,
+    rarity: listing.rarity,
+    star: listing.star,
+    price: listing.price,
+    created_by: context.userId,
+    recorded_by_email: listing.recordedBy,
+  }));
+
+  const { error: insertError } = await context.supabase.from("shop_listings").insert(rows);
+  if (insertError) throw new Error(insertError.message);
+}
+
+export async function addShopListing(
+  input: ShopListingInput,
+  context: ShopMutationContext
+): Promise<ShopListing> {
+  await compactShopListings(context);
+  const listings = await listShopListings(context.supabase, context.userId);
+  const slotIndex = nextAvailableSlot(listings);
+  if (slotIndex == null) {
+    throw new Error("Shop is full");
+  }
+  return upsertShopListing(slotIndex, input, context);
 }
 
 export async function upsertShopListing(
@@ -99,7 +154,8 @@ export async function deleteShopListing(
   context: ShopMutationContext
 ): Promise<boolean> {
   if (!isSupabaseConfigured()) {
-    return localShop.deleteShopListing(slotIndex, context.userId);
+    const removed = await localShop.deleteShopListing(slotIndex, context.userId);
+    return removed;
   }
 
   const { data, error } = await context.supabase
@@ -110,6 +166,7 @@ export async function deleteShopListing(
     .select("id");
 
   if (error) throw new Error(error.message);
+  await compactShopListings(context);
   return (data?.length ?? 0) > 0;
 }
 
@@ -129,8 +186,9 @@ export async function clearShop(context: ShopMutationContext): Promise<number> {
 }
 
 async function logShopSale(listing: ShopListing, context: ShopMutationContext) {
-  await addSale(
+  await addTransaction(
     {
+      type: "sale",
       character: listing.character,
       skin: listing.skin,
       rarity: listing.rarity,

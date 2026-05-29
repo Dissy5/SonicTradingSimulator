@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
 import { SkinImage } from "@/components/SkinImage";
-import { SalesTable } from "@/components/SalesTable";
+import { TransactionsTable } from "@/components/TransactionsTable";
 import {
   getCharactersFromCatalog,
   getDefaultSkinForCharacter,
@@ -12,9 +12,9 @@ import {
   getSkinsForCharacter,
 } from "@/lib/catalog";
 import { formatPrice } from "@/lib/format";
-import type { Sale, SkinCatalog } from "@/lib/types";
+import type { SkinCatalog, Transaction, TransactionType } from "@/lib/types";
 
-type RecordSaleFormProps = {
+type RecordTransactionFormProps = {
   catalog: SkinCatalog;
 };
 
@@ -27,15 +27,16 @@ async function postJson<T>(url: string, init?: RequestInit): Promise<T> {
   return res.json();
 }
 
-export function RecordSaleForm({ catalog }: RecordSaleFormProps) {
+export function RecordTransactionForm({ catalog }: RecordTransactionFormProps) {
   const characters = getCharactersFromCatalog(catalog);
+  const [transactionType, setTransactionType] = useState<TransactionType>("sale");
   const [character, setCharacter] = useState(characters[0] ?? "");
   const [skin, setSkin] = useState("");
   const [rarity, setRarity] = useState("");
   const [star, setStar] = useState(1);
   const [priceInput, setPriceInput] = useState("");
   const [average, setAverage] = useState<number | null>(null);
-  const [recentSales, setRecentSales] = useState<Sale[]>([]);
+  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -46,20 +47,20 @@ export function RecordSaleForm({ catalog }: RecordSaleFormProps) {
       ? getSkinImagePath(catalog, character, skin, rarity)
       : null;
 
-  const loadRecentSales = useCallback(async () => {
+  const loadRecentTransactions = useCallback(async () => {
     if (!character || !skin) {
-      setRecentSales([]);
+      setRecentTransactions([]);
       return;
     }
 
     try {
       const res = await fetch(
-        `/api/sales/recent?character=${encodeURIComponent(character)}&skin=${encodeURIComponent(skin)}&limit=10`
+        `/api/transactions/recent?character=${encodeURIComponent(character)}&skin=${encodeURIComponent(skin)}&limit=10`
       );
       if (!res.ok) return;
-      setRecentSales(await res.json());
+      setRecentTransactions(await res.json());
     } catch {
-      setRecentSales([]);
+      setRecentTransactions([]);
     }
   }, [character, skin]);
 
@@ -73,8 +74,8 @@ export function RecordSaleForm({ catalog }: RecordSaleFormProps) {
   }, [catalog, character, skin]);
 
   useEffect(() => {
-    loadRecentSales();
-  }, [loadRecentSales]);
+    loadRecentTransactions();
+  }, [loadRecentTransactions]);
 
   useEffect(() => {
     if (!character || !skin || !rarity) {
@@ -84,7 +85,7 @@ export function RecordSaleForm({ catalog }: RecordSaleFormProps) {
 
     let cancelled = false;
     fetch(
-      `/api/average-price?character=${encodeURIComponent(character)}&skin=${encodeURIComponent(skin)}&rarity=${encodeURIComponent(rarity)}&star=${star}`
+      `/api/average-price?character=${encodeURIComponent(character)}&skin=${encodeURIComponent(skin)}&rarity=${encodeURIComponent(rarity)}&star=${star}&type=${transactionType}`
     )
       .then((res) => res.json())
       .then((data: { average: number | null }) => {
@@ -97,7 +98,7 @@ export function RecordSaleForm({ catalog }: RecordSaleFormProps) {
     return () => {
       cancelled = true;
     };
-  }, [character, skin, rarity, star]);
+  }, [character, skin, rarity, star, transactionType]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -110,20 +111,29 @@ export function RecordSaleForm({ catalog }: RecordSaleFormProps) {
     setSubmitting(true);
     setMessage(null);
     try {
-      await postJson("/api/sales", {
+      await postJson("/api/transactions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ character, skin, rarity, star, price }),
+        body: JSON.stringify({
+          type: transactionType,
+          character,
+          skin,
+          rarity,
+          star,
+          price,
+        }),
       });
       setPriceInput("");
       const data = await postJson<{ average: number | null }>(
-        `/api/average-price?character=${encodeURIComponent(character)}&skin=${encodeURIComponent(skin)}&rarity=${encodeURIComponent(rarity)}&star=${star}`
+        `/api/average-price?character=${encodeURIComponent(character)}&skin=${encodeURIComponent(skin)}&rarity=${encodeURIComponent(rarity)}&star=${star}&type=${transactionType}`
       );
       setAverage(data.average);
-      await loadRecentSales();
-      setMessage("Sale recorded.");
+      await loadRecentTransactions();
+      setMessage(
+        transactionType === "sale" ? "Sale recorded." : "Purchase recorded."
+      );
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Failed to record sale");
+      setMessage(err instanceof Error ? err.message : "Failed to record transaction");
     } finally {
       setSubmitting(false);
     }
@@ -133,8 +143,20 @@ export function RecordSaleForm({ catalog }: RecordSaleFormProps) {
     <div className="space-y-8">
       <div className="grid gap-6 lg:grid-cols-2">
         <form onSubmit={handleSubmit} className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6">
-          <h2 className="mb-4 text-lg font-semibold">Log a sale</h2>
+          <h2 className="mb-4 text-lg font-semibold">Log a transaction</h2>
           <div className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              <TypeButton
+                active={transactionType === "sale"}
+                onClick={() => setTransactionType("sale")}
+                label="Sale"
+              />
+              <TypeButton
+                active={transactionType === "purchase"}
+                onClick={() => setTransactionType("purchase")}
+                label="Purchase"
+              />
+            </div>
             <label className="block text-sm text-zinc-400">
               Character
               <select
@@ -204,7 +226,7 @@ export function RecordSaleForm({ catalog }: RecordSaleFormProps) {
               </label>
             </div>
             <p className="text-sm text-zinc-400">
-              Average for this combo:{" "}
+              Average {transactionType} for this combo:{" "}
               <span className="font-medium text-zinc-100">
                 {average == null ? "N/A" : formatPrice(average)}
               </span>
@@ -214,7 +236,11 @@ export function RecordSaleForm({ catalog }: RecordSaleFormProps) {
               disabled={submitting || !character || !skin || !rarity || priceInput === ""}
               className="rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-500 disabled:opacity-50"
             >
-              {submitting ? "Saving…" : "Submit sale"}
+              {submitting
+                ? "Saving…"
+                : transactionType === "sale"
+                  ? "Submit sale"
+                  : "Submit purchase"}
             </button>
             {message && <p className="text-sm text-zinc-300">{message}</p>}
           </div>
@@ -230,14 +256,14 @@ export function RecordSaleForm({ catalog }: RecordSaleFormProps) {
         </div>
       </div>
 
-      {recentSales.length > 0 && (
+      {recentTransactions.length > 0 && (
         <section>
           <h2 className="mb-4 text-lg font-semibold">
-            Recent sales — {character} · {skin}
+            Recent transactions — {character} · {skin}
           </h2>
-          <SalesTable
+          <TransactionsTable
             catalog={catalog}
-            sales={recentSales}
+            transactions={recentTransactions}
             showCharacter={false}
             showSkin={false}
             showRecordedBy
@@ -245,5 +271,29 @@ export function RecordSaleForm({ catalog }: RecordSaleFormProps) {
         </section>
       )}
     </div>
+  );
+}
+
+function TypeButton({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-lg border px-3 py-1.5 text-sm ${
+        active
+          ? "border-blue-600 bg-blue-600/10 text-blue-300"
+          : "border-zinc-700 text-zinc-300 hover:bg-zinc-900"
+      }`}
+    >
+      {label}
+    </button>
   );
 }

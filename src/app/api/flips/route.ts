@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       },
       {
         userId: auth.user.id,
-        recordedBy: getUserDisplayName(auth.user),
+        recordedBy: await getUserDisplayName(auth.user, auth.supabase),
         supabase: auth.supabase,
       }
     );

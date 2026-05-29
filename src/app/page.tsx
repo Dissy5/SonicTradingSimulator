@@ -1,9 +1,15 @@
 import { redirect } from "next/navigation";
 
-import { RecordSaleForm } from "@/components/RecordSaleForm";
+import { DashboardGuest } from "@/components/DashboardGuest";
+import { DashboardHub } from "@/components/DashboardHub";
+import { isAdmin } from "@/lib/admin";
 import { loadCatalog } from "@/lib/catalog-server";
+import { loadDashboardOverview } from "@/lib/dashboard-server";
 import { mapOAuthErrorToLoginError } from "@/lib/login-errors";
-import { getAuthUser } from "@/lib/supabase/auth-server";
+import {
+  createSupabaseAuthServerClient,
+  getAuthUser,
+} from "@/lib/supabase/auth-server";
 
 export default async function HomePage({
   searchParams,
@@ -25,13 +31,16 @@ export default async function HomePage({
       if (params.email) query.set("email", params.email);
       redirect(`/login?${query.toString()}`);
     }
-    redirect("/login?next=/");
+
+    return <DashboardGuest />;
   }
 
-  const catalog = await loadCatalog();
-  return (
-    <section>
-      <RecordSaleForm catalog={catalog} />
-    </section>
-  );
+  const supabase = await createSupabaseAuthServerClient();
+  const [overview, catalog, admin] = await Promise.all([
+    loadDashboardOverview(user, supabase),
+    loadCatalog(),
+    isAdmin(),
+  ]);
+
+  return <DashboardHub overview={overview} catalog={catalog} isAdmin={admin} />;
 }

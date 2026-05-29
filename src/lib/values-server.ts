@@ -1,8 +1,8 @@
 import { getSkinImagePath } from "@/lib/catalog";
-import type { Sale, SkinCatalog } from "@/lib/types";
+import type { Transaction, SkinCatalog } from "@/lib/types";
 import { tierIndexForAverage, VALUE_TIER_DEFINITIONS } from "@/lib/values-tiers";
 
-import { listSales } from "./store";
+import { listTransactions } from "./store";
 
 export type ValuedSkin = {
   character: string;
@@ -23,13 +23,14 @@ function skinKey(character: string, skin: string, rarity: string): string {
   return `${character}\0${skin}\0${rarity}`;
 }
 
-export function buildAveragePricesBySkinFromSales(sales: Sale[]): Map<string, number> {
+export function buildAveragePricesBySkinFromSales(transactions: Transaction[]): Map<string, number> {
   const groups = new Map<string, number[]>();
 
-  for (const sale of sales) {
-    const key = skinKey(sale.character, sale.skin, sale.rarity);
+  for (const transaction of transactions) {
+    if (transaction.type !== "sale") continue;
+    const key = skinKey(transaction.character, transaction.skin, transaction.rarity);
     const prices = groups.get(key) ?? [];
-    prices.push(sale.price);
+    prices.push(transaction.price);
     groups.set(key, prices);
   }
 
@@ -70,12 +71,12 @@ export async function buildValuesTierRows(
   catalog: SkinCatalog,
   options?: { userId?: string | null }
 ): Promise<ValuesTierRow[]> {
-  let sales = await listSales();
+  let transactions = await listTransactions();
   if (options?.userId) {
-    sales = sales.filter((sale) => sale.createdBy === options.userId);
+    transactions = transactions.filter((entry) => entry.createdBy === options.userId);
   }
 
-  const averages = buildAveragePricesBySkinFromSales(sales);
+  const averages = buildAveragePricesBySkinFromSales(transactions);
   const catalogSkins = listCatalogSkins(catalog).map((entry) => ({
     ...entry,
     averagePrice: averages.get(skinKey(entry.character, entry.skin, entry.rarity)) ?? null,

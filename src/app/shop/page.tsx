@@ -15,8 +15,8 @@ export default async function ShopPage() {
   return (
     <section className="space-y-2">
       <p className="text-sm text-zinc-400">
-        Stage up to 25 skins for sale. Mark listings sold when they move — each sale is logged
-        automatically.
+        Stage up to 25 skins for sale. Add listings from the form above the grid; click a listed
+        skin to edit it. Slots shift automatically when you remove listings.
       </p>
       <ShopManager catalog={catalog} />
     </section>

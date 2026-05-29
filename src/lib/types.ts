@@ -1,5 +1,8 @@
-export type Sale = {
+export type TransactionType = "sale" | "purchase";
+
+export type Transaction = {
   id: number;
+  type: TransactionType;
   character: string;
   skin: string;
   rarity: string;
@@ -9,6 +12,9 @@ export type Sale = {
   createdBy: string | null;
   recordedBy: string | null;
 };
+
+/** @deprecated Use Transaction */
+export type Sale = Transaction;
 
 export type Flip = {
   id: number;

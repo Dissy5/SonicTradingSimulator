@@ -56,7 +56,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       { character, skin, rarity, star, price },
       {
         userId: auth.user.id,
-        recordedBy: getUserDisplayName(auth.user),
+        recordedBy: await getUserDisplayName(auth.user, auth.supabase),
         supabase: auth.supabase,
       }
     );
@@ -79,7 +79,7 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
   try {
     const removed = await deleteShopListing(slotIndex, {
       userId: auth.user.id,
-      recordedBy: getUserDisplayName(auth.user),
+      recordedBy: await getUserDisplayName(auth.user, auth.supabase),
       supabase: auth.supabase,
     });
     if (!removed) {

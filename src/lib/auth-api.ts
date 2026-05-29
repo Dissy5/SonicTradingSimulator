@@ -6,6 +6,8 @@ import {
   getAuthUser,
 } from "@/lib/supabase/auth-server";
 
+export { getUserDisplayName } from "@/lib/user-settings";
+
 export type AuthContext = {
   user: NonNullable<Awaited<ReturnType<typeof getAuthUser>>>;
   supabase: SupabaseClient;
@@ -25,15 +27,4 @@ export function isAuthContext(
   result: AuthContext | NextResponse
 ): result is AuthContext {
   return !(result instanceof NextResponse);
-}
-
-export function getUserDisplayName(
-  user: NonNullable<Awaited<ReturnType<typeof getAuthUser>>>
-): string {
-  return (
-    (user.user_metadata?.full_name as string | undefined) ??
-    (user.user_metadata?.name as string | undefined) ??
-    user.email ??
-    "Unknown user"
-  );
 }

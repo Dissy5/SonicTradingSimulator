@@ -2,19 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { getUserDisplayName, isAuthContext, requireAuthApi } from "@/lib/auth-api";
 import { exists } from "@/lib/catalog-server";
-import { addShopListing, getShopBoard } from "@/lib/shop-store";
+import { addTransaction, listTransactions } from "@/lib/store";
+import type { TransactionType } from "@/lib/types";
+
+function parseType(value: unknown): TransactionType | null {
+  if (value === "sale" || value === "purchase") return value;
+  return null;
+}
 
 export async function GET() {
-  const auth = await requireAuthApi();
-  if (!isAuthContext(auth)) return auth;
-
-  try {
-    const board = await getShopBoard(auth.supabase, auth.user.id);
-    return NextResponse.json({ slots: board });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to load shop";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+  return NextResponse.json(await listTransactions());
 }
 
 export async function POST(request: NextRequest) {
@@ -22,6 +19,7 @@ export async function POST(request: NextRequest) {
   if (!isAuthContext(auth)) return auth;
 
   const body = (await request.json()) as {
+    type?: string;
     character?: string;
     skin?: string;
     rarity?: string;
@@ -30,6 +28,7 @@ export async function POST(request: NextRequest) {
   };
 
   const { character, skin, rarity, star, price } = body;
+  const type = parseType(body.type) ?? "sale";
 
   if (!character || !skin || !rarity || star == null || price == null) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -48,17 +47,17 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const listing = await addShopListing(
-      { character, skin, rarity, star, price },
+    const transaction = await addTransaction(
+      { type, character, skin, rarity, star, price },
       {
         userId: auth.user.id,
         recordedBy: await getUserDisplayName(auth.user, auth.supabase),
         supabase: auth.supabase,
       }
     );
-    return NextResponse.json(listing, { status: 201 });
+    return NextResponse.json({ ok: true, transaction }, { status: 201 });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to add listing";
-    return NextResponse.json({ error: message }, { status: 400 });
+    const message = err instanceof Error ? err.message : "Failed to record transaction";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

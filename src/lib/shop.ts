@@ -31,3 +31,12 @@ export function shopBoardFromListings(listings: ShopListing[]): ShopBoard {
   }
   return board;
 }
+
+export function nextAvailableSlot(listings: ShopListing[]): number | null {
+  if (listings.length >= SHOP_SLOT_COUNT) return null;
+  const used = new Set(listings.map((listing) => listing.slotIndex));
+  for (let index = 0; index < SHOP_SLOT_COUNT; index++) {
+    if (!used.has(index)) return index;
+  }
+  return null;
+}

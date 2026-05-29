@@ -11,12 +11,12 @@ import fs from "fs/promises";
 import path from "path";
 
 import { createSupabaseServerClient } from "../src/lib/supabase/server";
-import type { Sale } from "../src/lib/types";
+import type { Transaction } from "../src/lib/types";
 
 async function main() {
   const salesPath = path.join(process.cwd(), "data", "sales.json");
   const raw = await fs.readFile(salesPath, "utf-8");
-  const sales = JSON.parse(raw) as Sale[];
+  const sales = JSON.parse(raw) as Transaction[];
 
   if (sales.length === 0) {
     console.log("No local sales to import.");
@@ -34,13 +34,14 @@ async function main() {
     return;
   }
 
-  const rows = sales.map((sale) => ({
-    character: sale.character,
-    skin: sale.skin,
-    rarity: sale.rarity,
-    star: sale.star,
-    price: sale.price,
-    created_at: sale.createdAt,
+  const rows = sales.map((entry) => ({
+    type: entry.type === "purchase" ? "purchase" : "sale",
+    character: entry.character,
+    skin: entry.skin,
+    rarity: entry.rarity,
+    star: entry.star,
+    price: entry.price,
+    created_at: entry.createdAt,
   }));
 
   const { error } = await supabase.from("sales").insert(rows);

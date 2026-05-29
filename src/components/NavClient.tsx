@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { SETTINGS_UPDATED_EVENT } from "@/lib/settings-events";
 
 export type NavUser = {
   id: string;
@@ -34,6 +35,11 @@ export function NavClient({ initialUser, initialAdmin }: NavClientProps) {
   const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
+    setUser(initialUser);
+    setAdmin(initialAdmin);
+  }, [initialUser, initialAdmin]);
+
+  useEffect(() => {
     const supabase = createSupabaseBrowserClient();
 
     const {
@@ -57,6 +63,21 @@ export function NavClient({ initialUser, initialAdmin }: NavClientProps) {
     return () => subscription.unsubscribe();
   }, [router]);
 
+  useEffect(() => {
+    async function refreshSessionState() {
+      const state = await fetchSessionState();
+      setUser(state.user);
+      setAdmin(state.isAdmin);
+    }
+
+    function onSettingsUpdated() {
+      void refreshSessionState();
+    }
+
+    window.addEventListener(SETTINGS_UPDATED_EVENT, onSettingsUpdated);
+    return () => window.removeEventListener(SETTINGS_UPDATED_EVENT, onSettingsUpdated);
+  }, []);
+
   async function signOut() {
     setSigningOut(true);
     const supabase = createSupabaseBrowserClient();
@@ -68,10 +89,11 @@ export function NavClient({ initialUser, initialAdmin }: NavClientProps) {
   }
 
   const links = [
-    { href: "/", label: "Record Sale" },
+    { href: "/", label: "Dashboard" },
+    { href: "/record", label: "Record" },
     { href: "/shop", label: "Shop" },
     { href: "/flips", label: "Flips" },
-    { href: "/sales", label: "Sales Log" },
+    { href: "/transactions", label: "Transactions" },
     { href: "/values", label: "Values" },
     ...(admin ? [{ href: "/add", label: "Catalog" }] : []),
   ];
@@ -102,10 +124,13 @@ export function NavClient({ initialUser, initialAdmin }: NavClientProps) {
                 unoptimized
               />
             ) : null}
-            <span className="max-w-40 truncate text-sm text-zinc-400">
+            <Link
+              href="/settings"
+              className="max-w-40 truncate text-sm text-zinc-400 hover:text-zinc-200"
+            >
               {user.name}
               {admin ? " · Admin" : ""}
-            </span>
+            </Link>
             <button
               type="button"
               onClick={signOut}

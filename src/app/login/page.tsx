@@ -37,7 +37,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       <div>
         <h2 className="mb-2 text-lg font-semibold">Sign in</h2>
         <p className="text-sm text-zinc-400">
-          Sign in with Google to record sales. The sales log is available without an account.
+          Sign in with Google to record transactions. The transaction log is available without an account.
         </p>
         <p className="mt-2 text-xs text-zinc-500">
           Sign-in is invite-only. If the Google account you pick isn&apos;t authorized, you&apos;ll
@@ -52,8 +52,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       <SignInWithGoogle next={next} />
 
       <p className="text-center text-sm text-zinc-500">
-        <Link href="/sales" className="text-zinc-400 hover:text-zinc-200">
-          View sales log without signing in
+        <Link href="/transactions" className="text-zinc-400 hover:text-zinc-200">
+          View transactions without signing in
         </Link>
       </p>
     </section>

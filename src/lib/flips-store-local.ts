@@ -120,6 +120,30 @@ export async function reopenFlip(id: number): Promise<void> {
   await writeFlips(flips);
 }
 
+export async function deleteAllFlipsForUser(userId: string): Promise<number> {
+  const flips = await readFlips();
+  const next = flips.filter((flip) => flip.createdBy !== userId);
+  const removed = flips.length - next.length;
+  if (removed > 0) {
+    await writeFlips(next);
+  }
+  return removed;
+}
+
+export async function updateRecordedByForUser(userId: string, recordedBy: string): Promise<number> {
+  const flips = await readFlips();
+  let count = 0;
+  const next = flips.map((flip) => {
+    if (flip.createdBy !== userId) return flip;
+    count++;
+    return { ...flip, recordedBy };
+  });
+  if (count > 0) {
+    await writeFlips(next);
+  }
+  return count;
+}
+
 export async function deleteFlip(id: number): Promise<boolean> {
   const flips = await readFlips();
   const index = flips.findIndex((flip) => flip.id === id);

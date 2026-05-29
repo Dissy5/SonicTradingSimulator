@@ -2,6 +2,7 @@ import fs from "fs/promises";
 import path from "path";
 
 import type { ShopListing } from "@/lib/shop";
+import { nextAvailableSlot } from "@/lib/shop";
 
 const shopPath = path.join(process.cwd(), "data", "shop.json");
 
@@ -32,6 +33,39 @@ async function writeListings(listings: ShopListing[]) {
 
 export async function listShopListings(_userId: string): Promise<ShopListing[]> {
   return readListings();
+}
+
+export async function compactShopListings(userId: string): Promise<void> {
+  const listings = await readListings();
+  const userListings = listings
+    .filter((listing) => listing.createdBy === userId)
+    .sort((a, b) => a.slotIndex - b.slotIndex);
+  const others = listings.filter((listing) => listing.createdBy !== userId);
+
+  userListings.forEach((listing, index) => {
+    listing.slotIndex = index;
+  });
+
+  await writeListings([...others, ...userListings]);
+}
+
+export async function addShopListing(
+  input: {
+    character: string;
+    skin: string;
+    rarity: string;
+    star: number;
+    price: number;
+  },
+  context: ShopContext
+): Promise<ShopListing> {
+  await compactShopListings(context.userId);
+  const listings = await listShopListingsForUser(context.userId);
+  const slotIndex = nextAvailableSlot(listings);
+  if (slotIndex == null) {
+    throw new Error("Shop is full");
+  }
+  return upsertShopListing(slotIndex, input, context);
 }
 
 export async function upsertShopListing(
@@ -82,6 +116,7 @@ export async function deleteShopListing(slotIndex: number, userId: string): Prom
   );
   if (next.length === listings.length) return false;
   await writeListings(next);
+  await compactShopListings(userId);
   return true;
 }
 
@@ -91,6 +126,20 @@ export async function clearShopListings(userId: string): Promise<number> {
   const removed = listings.length - next.length;
   await writeListings(next);
   return removed;
+}
+
+export async function updateRecordedByForUser(userId: string, recordedBy: string): Promise<number> {
+  const listings = await readListings();
+  let count = 0;
+  const next = listings.map((listing) => {
+    if (listing.createdBy !== userId) return listing;
+    count++;
+    return { ...listing, recordedBy };
+  });
+  if (count > 0) {
+    await writeListings(next);
+  }
+  return count;
 }
 
 export async function listShopListingsForUser(userId: string): Promise<ShopListing[]> {
