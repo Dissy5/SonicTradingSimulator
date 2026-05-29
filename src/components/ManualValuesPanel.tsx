@@ -38,21 +38,14 @@ async function postManualValue(body: {
 }
 
 export function ManualValuesPanel({ catalog, onValuesChanged }: ManualValuesPanelProps) {
-  const [wizardKey, setWizardKey] = useState(0);
-
-  function handleValuesChanged() {
-    onValuesChanged();
-    setWizardKey((value) => value + 1);
-  }
-
   return (
     <div className="space-y-8">
       <p className="text-sm text-zinc-400">
         Manual values affect the community values sheet only. They are not shown in transaction
         history or user dashboards.
       </p>
-      <ManualValueForm catalog={catalog} onValuesChanged={handleValuesChanged} />
-      <UnassignedSkinWizard key={wizardKey} onValuesChanged={handleValuesChanged} />
+      <ManualValueForm catalog={catalog} onValuesChanged={onValuesChanged} />
+      <UnassignedSkinWizard onValuesChanged={onValuesChanged} />
     </div>
   );
 }
@@ -233,7 +226,6 @@ function UnassignedSkinWizard({ onValuesChanged }: { onValuesChanged: () => void
         throw new Error(data.error ?? "Failed to load skins");
       }
       setSkins(data.skins ?? []);
-      setIndex(0);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load skins");
       setSkins([]);
@@ -293,7 +285,10 @@ function UnassignedSkinWizard({ onValuesChanged }: { onValuesChanged: () => void
           )
       );
       setSkins(nextSkins);
-      setIndex((value) => (nextSkins.length === 0 ? 0 : Math.min(value, nextSkins.length - 1)));
+      setIndex((value) => {
+        if (nextSkins.length === 0) return 0;
+        return Math.min(value, nextSkins.length - 1);
+      });
       setPriceInput("");
       setMessage(`Value recorded for ${current.character} · ${current.skin} (${current.rarity}).`);
       onValuesChanged();
